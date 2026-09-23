@@ -1,0 +1,40 @@
+.cq-access-page{min-width:0}
+.cq-access-overview{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:22px;margin-bottom:24px}
+.cq-access-account,.cq-access-scope{display:flex;align-items:center;gap:18px;border-radius:16px;padding:25px 26px}
+.cq-access-account{background:#fff;border:1px solid #e6e9eb}
+.cq-access-account>.avatar{flex-shrink:0}
+.cq-access-person{min-width:0}
+.cq-access-eyebrow{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#607079}
+.cq-access-person h2{font-weight:650;font-size:19px;line-height:1.35;color:#253a44;margin:6px 0 10px;overflow-wrap:anywhere}
+.cq-access-account-meta{display:flex;align-items:center;flex-wrap:wrap;gap:10px;font-size:11px;color:#607079}
+.cq-access-account-meta>span:last-child{overflow-wrap:anywhere}
+.cq-access-scope{background:#edf6f1;border:1px solid #dfede5}
+.cq-access-scope-icon{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:46px;height:46px;background:#dfefe5;color:#397c5c;border-radius:13px}
+.cq-access-scope h2{font-size:11px;font-weight:500;color:#577062;margin:0 0 8px}
+.cq-access-scope p{font-size:16px;line-height:1.5;font-weight:600;color:#365e4c;margin:0}
+.cq-access-permissions{border:1px solid #e6e9eb;border-radius:16px;background:#fff;overflow:hidden}
+.cq-access-heading{padding:25px 26px 22px}
+.cq-access-heading h2{margin:0 0 8px;font-size:16px;font-weight:650;color:#263c45}
+.cq-access-heading p{margin:0;font-size:12px;color:#607079;line-height:1.7;max-width:720px}
+.cq-access-table{border-collapse:collapse;width:100%;text-align:left}
+.cq-access-table thead th{background:#fafbfc;border-top:1px solid #edf0f1;border-bottom:1px solid #edf0f1;font-size:10px;font-weight:550;letter-spacing:.06em;text-transform:uppercase;color:#607079;padding:13px 26px}
+.cq-access-table thead th:last-child{text-align:right}
+.cq-access-table tbody th,.cq-access-table tbody td{padding:18px 26px;border-bottom:1px solid #edf0f1}
+.cq-access-table tbody tr:last-child th,.cq-access-table tbody tr:last-child td{border-bottom:0}
+.cq-access-table tbody th{font-size:13px;font-weight:500;color:#485f68}
+.cq-access-table tbody td{text-align:right}
+.cq-access-capability{display:flex;align-items:center;gap:13px;line-height:1.5}
+.cq-access-capability-icon{color:#94a39d;display:flex;align-items:center;flex-shrink:0}
+.cq-access-capability small{display:block;margin-top:4px;font-size:11px;font-weight:400;color:#607079}
+.cq-access-status{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;font-size:11px;font-weight:500}
+.cq-access-status-icon{display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;flex-shrink:0}
+.cq-access-status-allowed{color:#326f50}
+.cq-access-status-allowed .cq-access-status-icon{background:#eaf6ee;color:#418762}
+.cq-access-status-denied{color:#607079}
+.cq-access-status-denied .cq-access-status-icon{background:#f1f3f4;color:#98a3a9}
+.cq-access-session{display:flex;align-items:flex-start;gap:13px;margin:24px 0 0;padding:19px 22px;background:#f0f3f5;border:1px solid #e8edf0;border-radius:13px}
+.cq-access-session>span{color:#82949c;display:flex;align-items:center;flex-shrink:0;margin-top:2px}
+.cq-access-session h2{font-size:12px;line-height:1.6;font-weight:550;color:#607079;margin:0 0 4px}
+.cq-access-session p{font-size:11px;color:#607079;line-height:1.7;margin:0}
+@media(max-width:950px){.cq-access-overview{grid-template-columns:1fr;gap:15px}.cq-access-account,.cq-access-scope{padding:22px}.cq-access-scope p{font-size:14px}}
+@media(max-width:600px){.cq-access-account,.cq-access-scope{padding:20px;gap:15px}.cq-access-person h2{font-size:17px}.cq-access-scope-icon{width:40px;height:40px}.cq-access-heading{padding:22px 20px}.cq-access-heading p{font-size:11px}.cq-access-table thead th{padding:12px 17px;font-size:9px}.cq-access-table tbody th,.cq-access-table tbody td{padding:17px}.cq-access-table tbody th{font-size:12px}.cq-access-capability{gap:10px}.cq-access-capability-icon svg{width:16px;height:16px}.cq-access-status{gap:5px;font-size:10px}.cq-access-table tbody td{padding-left:0}.cq-access-session{padding:17px;margin-top:18px}.cq-access-permissions{border-radius:13px}}
