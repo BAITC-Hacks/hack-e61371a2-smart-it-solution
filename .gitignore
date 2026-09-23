@@ -18,6 +18,7 @@ test-results/
 .data/
 .cache/
 .nim-cache/
+/backups/
 
 # OS and office temporary files
 .DS_Store

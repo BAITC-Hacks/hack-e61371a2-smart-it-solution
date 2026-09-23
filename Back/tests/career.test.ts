@@ -119,6 +119,47 @@ test(
         sessions: [],
       };
       await request(hr, "/api/v1/events", "POST", eventInput);
+      await t.test(
+        "preferred language changes explanation and cache hash but not scores or selected events",
+        async () => {
+          const calculations: Awaited<
+            ReturnType<typeof computeRecommendations>
+          >[] = [];
+          for (const locale of ["ru", "kk", "en"]) {
+            await db.query(
+              "UPDATE employees SET preferred_language=$1 WHERE employee_id='TEST_C'",
+              [locale],
+            );
+            calculations.push(await computeRecommendations(db, "TEST_C"));
+          }
+          assert.equal(new Set(calculations.map((c) => c.inputHash)).size, 3);
+          assert.ok(calculations.every((c) => c.candidates.length > 0));
+          const stable = (c: (typeof calculations)[number]) =>
+            c.candidates.map((r) => ({
+              eventId: r.eventId,
+              score: r.score,
+              expectedGains: r.expectedGains,
+              factorIds: r.factorIds,
+            }));
+          assert.deepEqual(stable(calculations[0]!), stable(calculations[1]!));
+          assert.deepEqual(stable(calculations[0]!), stable(calculations[2]!));
+          assert.match(
+            calculations[0]!.candidates[0]!.explanation,
+            /Текущая роль/,
+          );
+          assert.match(
+            calculations[1]!.candidates[0]!.explanation,
+            /Ағымдағы рөл/,
+          );
+          assert.match(
+            calculations[2]!.candidates[0]!.explanation,
+            /The current role/,
+          );
+          await db.query(
+            "UPDATE employees SET preferred_language='ru' WHERE employee_id='TEST_C'",
+          );
+        },
+      );
       let participationId: string;
       await t.test(
         "profile access, manager read scope and forbidden team writes",
