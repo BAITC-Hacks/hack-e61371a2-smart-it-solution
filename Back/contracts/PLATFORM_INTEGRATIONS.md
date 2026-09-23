@@ -24,7 +24,7 @@
 
 | Метод и путь                                   | Контракт                                                                                                                    |
 | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| `GET /integrations`                            | Ключи настроенных подключений, признаки worker/SSO, `messengerTargetKey`, статус NVIDIA `deferred`; секреты не возвращаются |
+| `GET /integrations`                            | Ключи настроенных подключений, признаки worker/SSO, `messengerTargetKey`, `aiProvider` и `aiEnabled`; секреты не возвращаются |
 | `GET /integrations/webhooks`                   | Подписки, темы, targetKey, active                                                                                           |
 | `POST /integrations/webhooks` **I**            | `{name,targetKey,topics:[...]}`                                                                                             |
 | `PATCH /integrations/webhooks/:id`             | `{active:boolean}`                                                                                                          |
@@ -161,3 +161,6 @@ TEST_DATABASE_URL=postgresql://career_quest:career_quest_local_only@localhost:54
 ```
 
 База в примере — локальный демонстрационный PostgreSQL из Compose. Все SQL-проверки создают отдельную случайную схему и удаляют её после выполнения.
+
+
+Поля `aiProvider` (`openai`/`self_hosted`) и `aiEnabled` показывают серверную конфигурацию генерации, а не результат проверки живого провайдера. Устаревшее поле `nvidia` сохраняется для совместимости: `configured` для включённого self_hosted, иначе `disabled`.

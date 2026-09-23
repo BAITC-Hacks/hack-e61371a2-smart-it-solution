@@ -1,4 +1,8 @@
 import { domainErrorText } from './api-errors';
+// Backend inference may take 60s. Leave room for HTTP/DB work while keeping
+// ordinary API requests on the shorter default timeout.
+export const AI_REQUEST_TIMEOUT_MS = 90_000;
+export const AI_RETRY_DELAY_MS = 120_000;
 export type Role = 'employee' | 'manager' | 'hr' | 'admin';
 export type User = { id: string; login: string; displayName: string; role: Role; employeeId: string | null; demo: boolean };
 export type Session = { user: User; csrfToken: string };

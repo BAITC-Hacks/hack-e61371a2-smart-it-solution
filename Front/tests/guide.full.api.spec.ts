@@ -31,9 +31,9 @@ test('full real API: reviewed guide, administration and private deterministic as
   test.setTimeout(220_000);
   await page.addInitScript(() => localStorage.setItem('cq.locale', 'ru'));
   const admin = await login(page, 'admin');
-  const usageBefore = await data<{ enabled: boolean; requests: number; chargedUsd: number }>(page, '/admin/ai/usage');
+  const usageBefore = await data<{ enabled: boolean; embeddingsEnabled?: boolean; requests: number; chargedUsd: number }>(page, '/admin/ai/usage');
   // Refuse to send an assistant question if this test server could call a paid provider.
-  test.skip(usageBefore.enabled, 'The guide suite requires AI_ENABLED=false and never calls a paid provider.');
+  test.skip(usageBefore.enabled || usageBefore.embeddingsEnabled !== false, 'The guide suite requires generation and embeddings explicitly disabled and never calls a provider.');
   const marker = `UI_GUIDE_${Date.now()}`;
   const topicSlug = `ui-guide-${Date.now()}`;
   const articleTitle = `Синтетическая проверка ${marker}`;
@@ -208,7 +208,7 @@ test('full real API: reviewed guide, administration and private deterministic as
     expect(usageAfter.requests).toBe(usageBefore.requests);
     expect(usageAfter.chargedUsd).toBe(usageBefore.chargedUsd);
     await page.getByRole('button', { name: 'Поиск по смыслу', exact: true }).click();
-    await expect(page.getByTestId('semantic-panel')).toContainText('ИИ выключен на сервере.');
+    await expect(page.getByTestId('semantic-panel')).toContainText('Сервер не подтвердил доступность модели поиска.');
     await expect(page.getByTestId('semantic-index')).toBeDisabled();
     await expect(page.getByTestId('semantic-evaluate')).toBeDisabled();
     await expect(page.getByTestId('semantic-enable')).toBeDisabled();

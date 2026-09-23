@@ -1,7 +1,7 @@
 // Only public branding and the offline screen may enter this cache.
 // API responses, authenticated HTML and employee data are never cached.
-const CACHE = 'career-quest-public-v1';
-const PUBLIC_FILES = ['/offline.html', '/app-icon.svg', '/app-icon-192.png', '/app-icon-512.png', '/manifest.webmanifest'];
+const CACHE = 'career-quest-public-v2';
+const PUBLIC_FILES = ['/offline.html', '/offline.js', '/app-icon.svg', '/app-icon-192.png', '/app-icon-512.png', '/manifest.webmanifest'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(PUBLIC_FILES)));
 });

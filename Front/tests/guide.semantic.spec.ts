@@ -15,7 +15,7 @@ test('semantic contract: paid operations require review, retries reuse receipt a
  let failedIndex=false;
  await page.route('**/api/v1/**',async route=>{
   const request=route.request(),url=new URL(request.url()),path=url.pathname.slice('/api/v1'.length);const ok=(data:unknown)=>route.fulfill({json:{data}});
-  if(path==='/admin/ai/usage')return ok({enabled:true,remainingUsd:20});
+  if(path==='/admin/ai/usage')return ok({enabled:true,embeddingsEnabled:true,embeddingsConfigured:true,remainingUsd:20});
   if(path==='/guide/topics')return ok([{id:topicId,active:true}]);
   if(path==='/guide/articles')return ok(url.searchParams.get('locale')==='ru'?[article]:[]);
   if(!path.startsWith('/admin/semantic/'))return route.fallback();

@@ -1,4 +1,5 @@
-# Start with: docker compose --env-file .env.brev -f compose.yaml -f compose.brev.yaml up -d --build
+# Start with: python3 infra/brev/compose.py up -d --build --wait
+# Preserves repository .env settings before applying the .env.brev overlay.
 # Shares only the backend network namespace; no model port is published on the host.
 services:
   ai-tunnel:
