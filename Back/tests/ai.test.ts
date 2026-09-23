@@ -660,6 +660,45 @@ test(
         },
       );
       await t.test(
+        "assistant renders grounded model wording with validated citations",
+        async () => {
+          const generatedText =
+            "В демонстрационной инструкции описаны действия при проблемах с ноутбуком. Реальные контакты организации пока не настроены.";
+          let selectedId: string | undefined;
+          const answer = await answerAssistant({
+            pool: pool!,
+            user: employee,
+            question: "Что делать, если сломался ноутбук?",
+            locale: "ru",
+            config: selfHosted,
+            fetchFn: async (_url, init) => {
+              const body = JSON.parse(String(init.body));
+              const input = JSON.parse(body.messages[1].content);
+              assert.ok(
+                body.response_format.json_schema.schema.required.includes(
+                  "answerText",
+                ),
+              );
+              selectedId = input.sources[0].id;
+              return chatOutput({
+                sourceIds: [selectedId],
+                factIds: [],
+                needsClarification: false,
+                answerText: generatedText,
+              });
+            },
+          });
+          assert.equal(answer.source, "ai");
+          assert.ok(answer.content.includes(generatedText));
+          assert.deepEqual(
+            answer.citations.map((citation) => citation.id),
+            [selectedId],
+          );
+          assert.equal(answer.citations[0]!.synthetic, true);
+          assert.deepEqual(answer.contacts, []);
+        },
+      );
+      await t.test(
         "assistant selection constrains career fact IDs and renders the actual own profile",
         async () => {
           let expectedProfile = "";
@@ -725,10 +764,15 @@ test(
                 sourceIds: [randomUUID()],
                 factIds: [],
                 needsClarification: false,
+                answerText: "FABRICATED_SOURCE_MUST_NEVER_BE_RENDERED",
               }),
           });
           assert.equal(fabricated.source, "fallback");
           assert.equal(fabricated.fallbackReason, "INVALID_AI_SELECTION");
+          assert.equal(
+            fabricated.content.includes("FABRICATED_SOURCE_MUST_NEVER_BE_RENDERED"),
+            false,
+          );
           let called = false;
           const sensitive = await answerAssistant({
             pool: pool!,
@@ -754,6 +798,67 @@ test(
           assert.ok(
             career.facts.every((f) => f.href.includes(employee.employeeId!)),
           );
+        },
+      );
+      await t.test(
+        "conversation includes both roles, redacts personal data and bounds context",
+        async () => {
+          const fullName = (
+            await pool!.query(
+              "SELECT full_name FROM employees WHERE employee_id=$1",
+              [employee.employeeId],
+            )
+          ).rows[0].full_name;
+          const conversation = Array.from({ length: 14 }, (_, index) => ({
+            role: index % 2 === 0 ? ("user" as const) : ("assistant" as const),
+            content:
+              `CONVERSATION_TURN_${index}: Мои навыки ${fullName} ${employee.employeeId} test@example.invalid sk-example123456789 ` +
+              "подробности ".repeat(150),
+          }));
+          let input: any;
+          const answer = await answerAssistant({
+            pool: pool!,
+            user: employee,
+            question: "Почему?",
+            conversation,
+            locale: "ru",
+            config: selfHosted,
+            fetchFn: async (_url, init) => {
+              const body = JSON.parse(String(init.body));
+              input = JSON.parse(body.messages[1].content);
+              return chatOutput({
+                sourceIds: [],
+                factIds: ["profile"],
+                needsClarification: false,
+                answerText: "Ваш текущий профиль учтён в ответе.",
+              });
+            },
+          });
+          assert.ok(input, answer.fallbackReason);
+          assert.equal(input.conversation.length, 12);
+          assert.deepEqual(
+            input.conversation.map((turn: { role: string }) => turn.role),
+            conversation.slice(-12).map((turn) => turn.role),
+          );
+          assert.match(
+            input.conversation[0].content,
+            /^CONVERSATION_TURN_2:/,
+          );
+          assert.match(
+            input.conversation.at(-1).content,
+            /^CONVERSATION_TURN_13:/,
+          );
+          for (const turn of input.conversation) {
+            assert.ok(turn.content.length <= 1000);
+            for (const secret of [
+              fullName,
+              employee.employeeId!,
+              "test@example.invalid",
+              "sk-example123456789",
+            ])
+              assert.equal(turn.content.includes(secret), false);
+          }
+          assert.ok(input.facts.some((fact: { id: string }) => fact.id === "profile"));
         },
       );
       await t.test(
@@ -803,11 +908,16 @@ test(
                 sourceIds: [articleId],
                 factIds: [],
                 needsClarification: false,
+                answerText: "ARCHIVED_SOURCE_MUST_NEVER_BE_RENDERED",
               });
             },
           });
           assert.equal(changed.citations.length, 0);
           assert.match(changed.content, /нет подтверждённого ответа/);
+          assert.equal(
+            changed.content.includes("ARCHIVED_SOURCE_MUST_NEVER_BE_RENDERED"),
+            false,
+          );
         },
       );
       const invoke = async (
