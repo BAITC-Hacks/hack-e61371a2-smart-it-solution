@@ -1,0 +1,24 @@
+# Local credentials and environment overrides
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies, builds and reports
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.log
+*.tsbuildinfo
+
+# Local database and model files
+.data/
+.cache/
+.nim-cache/
+
+# OS and office temporary files
+.DS_Store
+~$*
