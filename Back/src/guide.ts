@@ -305,10 +305,47 @@ function articleToDraft(a: GuideArticle) {
   };
 }
 
-export async function seedDemoGuide(pool: Pool, user: User) {
+const demoInstructions: Record<string, Record<Locale, string[]>> = {
+  "demo-it-access": {
+    ru: ["Уточните, какая система недоступна, когда возникла ошибка и что изменилось перед ней. Запишите текст ошибки без паролей и персональных данных.", "Проверьте адрес сайта и подключение к сети. Для Career Quest попробуйте выйти и войти снова. Дополнительные права согласуйте с ответственным за систему.", "Откройте контакты статьи в /guide. Демонстрационный канал показывает, кому адресовать вопрос, но не принимает реальные заявки. Реальный канал ИТ-поддержки уточните у руководителя.", "В обращении укажите систему, время ошибки и влияние на работу. Не передавайте пароли, коды подтверждения или токены. После восстановления повторно проверьте действие."],
+    kk: ["Қай жүйе ашылмайтынын, қате уақытын және оған дейін не өзгергенін анықтаңыз. Қате мәтінін құпиясөздер мен жеке деректерсіз жазыңыз.", "Сайт мекенжайы мен желіні тексеріңіз. Career Quest жүйесінен шығып, қайта кіріп көріңіз. Қосымша рұқсатты жүйеге жауапты адаммен келісіңіз.", "/guide мақаласындағы байланыстарды қараңыз. Демо-арна сұрақтың адресатын көрсетеді, бірақ нақты өтініш қабылдамайды. Нақты IT қолдау арнасын басшыдан нақтылаңыз.", "Өтініште жүйені, қате уақытын және жұмысқа әсерін көрсетіңіз. Құпиясөз, растау коды мен токен жібермеңіз. Қалпына келген соң әрекетті қайта тексеріңіз."],
+    en: ["Identify the affected system, error time and any preceding changes. Record the error without passwords or personal data.", "Check the website address and network. For Career Quest, try signing out and back in. Agree additional permissions with the system owner.", "Check the article contacts in /guide. Demo channels illustrate who handles the question but cannot receive real requests. Ask your manager for the actual IT support channel.", "Include the system, error time and impact on work. Never share passwords, verification codes or tokens. Retest after access is restored."],
+  },
+  "demo-leave": {
+    ru: ["Сформулируйте вопрос и предполагаемые даты отсутствия. Не вводите медицинские сведения или документы в чат.", "Обсудите с руководителем передачу задач и влияние отсутствия на работу. Это обсуждение не заменяет официальное оформление.", "Найдите инструкцию и HR-контакт в /guide. Демо-контакт не принимает заявки. Реальные правила, остаток дней, документы и порядок согласования уточните у уполномоченного сотрудника.", "После официального согласования уточните, какие задачи и обучение нужно перенести. Проверьте записи на мероприятия в /events. Career Quest не рассчитывает остаток отпуска и не оформляет больничный."],
+    kk: ["Сұрақты және жұмыста болмайтын болжамды күндерді анықтаңыз. Чатқа медициналық ақпарат пен құжаттарды енгізбеңіз.", "Тапсырмаларды тапсыру мен жұмысқа әсерін басшымен талқылаңыз. Бұл әңгіме ресми рәсімдеуді алмастырмайды.", "/guide бөлімінен HR байланысы мен нұсқаулықты табыңыз. Демо-байланыс өтініш қабылдамайды. Нақты ережелерді, күндер қалдығын, құжаттар мен келісу тәртібін уәкілетті қызметкерден нақтылаңыз.", "Ресми келісімнен кейін тапсырмалар мен оқуды ауыстыруды нақтылаңыз. /events ішіндегі жазбаларды тексеріңіз. Career Quest демалыс қалдығын есептемейді және еңбекке жарамсыздықты рәсімдемейді."],
+    en: ["State your question and proposed absence dates. Do not enter medical details or documents into chat.", "Discuss task handover and workload with your manager. This discussion does not replace formal approval.", "Find the guide and HR contact in /guide. Demo contacts cannot receive requests. Confirm actual rules, leave balance, documents and approval with an authorized person.", "After formal approval, check which tasks and learning activities need rescheduling in /events. Career Quest does not calculate leave balances or process sick leave."],
+  },
+  "demo-learning": {
+    ru: ["В /development проверьте роль, грейд и навыки. Выберите карьерную цель и изучите дефициты навыков.", "Откройте рекомендации и прочитайте объяснение: какие навыки развивает мероприятие и почему оно подходит цели.", "В /events проверьте формат, даты и места, затем запишитесь на подходящее мероприятие. В /growth проверьте план, сроки и нагрузку.", "После фактического прохождения проверьте статус участия и историю обучения. Сопоставьте обновлённые навыки с целью; расчётный прогресс не является гарантией повышения.", "Спросите /assistant: «Почему мне подходит это обучение?» или «Какой следующий шаг к моей цели?». При ошибке в данных уточните сведения у куратора обучения; демо-контакт показывает только пример маршрута обращения."],
+    kk: ["/development бөлімінде рөлді, грейдті және дағдыларды тексеріңіз. Мансаптық мақсатты таңдап, дағды тапшылығын қараңыз.", "Ұсыныстардың түсіндірмесін оқыңыз: іс-шара қандай дағдыларды дамытады және мақсатқа неге сәйкес келеді.", "/events ішінде форматты, күндерді және орындарды тексеріп, оқуға жазылыңыз. /growth бөлімінде жоспарды, мерзім мен жүктемені қараңыз.", "Оқуды нақты аяқтаған соң қатысу мәртебесі мен оқу тарихын тексеріңіз. Жаңарған дағдыларды мақсатпен салыстырыңыз; есептік ілгерілеу қызметте өсу кепілдігі емес.", "/assistant көмекшісінен «Бұл оқу маған неге сәйкес келеді?» немесе «Мақсатыма жетудің келесі қадамы қандай?» деп сұраңыз. Дерек қатесі болса, оқу кураторынан нақтылаңыз; демо-байланыс тек өтініш бағытының мысалы."],
+    en: ["Review your role, grade and skills in /development. Select a career goal and inspect skill gaps.", "Read recommendation explanations: which skills an activity develops and why it fits your goal.", "Check format, dates and places in /events, then enroll in suitable learning. Review your plan, timeline and workload in /growth.", "After actually completing learning, check participation status and learning history. Compare updated skills with your goal; calculated progress is not a promotion guarantee.", "Ask /assistant: ‘Why does this learning suit me?’ or ‘What is my next step toward my goal?’ Ask the learning coordinator about incorrect data; demo contacts only illustrate a routing example."],
+  },
+  "demo-onboarding": {
+    ru: ["Проверьте имя, подразделение, роль и руководителя в профиле. Уточните несоответствия через привычный рабочий канал.", "Вместе с руководителем перечислите необходимые системы и доступы. При проблеме используйте тему про рабочий доступ в /guide.", "Уточните первые задачи, ожидаемый результат, способ обратной связи и того, кто помогает с рабочими вопросами. Демо-подсказка не является официальным назначением наставника.", "В /development ознакомьтесь с навыками и целями, в /events выберите согласованное обучение, в /growth проверьте план. Через /assistant подготовьте вопросы для встречи с руководителем."],
+    kk: ["Профильдегі аты-жөніңізді, бөлімді, рөлді және басшыны тексеріңіз. Сәйкессіздікті әдеттегі жұмыс арнасы арқылы нақтылаңыз.", "Басшымен бірге қажетті жүйелер мен рұқсаттарды тізіңіз. Ақау болса, /guide ішіндегі жұмыс жүйесіне кіру тақырыбын қараңыз.", "Алғашқы тапсырмаларды, нәтижені, кері байланыс жолын және кім көмектесетінін нақтылаңыз. Демо-нұсқау тәлімгерді ресми тағайындамайды.", "/development ішінде дағдылар мен мақсаттарды, /events ішінде келісілген оқуды, /growth ішінде жоспарды қараңыз. /assistant арқылы басшымен кездесуге сұрақтар дайындаңыз."],
+    en: ["Check your name, department, role and manager in your profile. Confirm corrections through your usual work channel.", "List required systems and permissions with your manager. For access issues, use the work-access topic in /guide.", "Clarify initial tasks, expected outcomes, feedback channels and who can help. Demo guidance is not an official mentor assignment.", "Explore skills and goals in /development, agreed learning in /events and your plan in /growth. Use /assistant to prepare questions for a meeting with your manager."],
+  },
+  "demo-conflict": {
+    ru: ["Не публикуйте в чате имена других сотрудников, медицинские сведения, документы, секреты или данные клиентов. Для первого вопроса достаточно обезличенного описания.", "Для собственного обращения запишите факты: что произошло, когда и какой рабочий вопрос нужно решить. Отделяйте события от предположений; не загружайте эти записи в демо-систему.", "В /guide найдите действующий реальный контакт с пометкой конфиденциальности. Демонстрационные контакты не принимают обращения и не обеспечивают конфиденциальный канал.", "До отправки уточните, кто увидит обращение и как с вами свяжутся. При необходимости немедленной помощи используйте реальные доступные вам экстренные или внутренние каналы: чат не является каналом расследования или экстренной помощи."],
+    kk: ["Чатқа басқа қызметкерлердің атын, медициналық деректерді, құжаттарды, құпияларды немесе клиент деректерін жазбаңыз. Алғашқы сұрақты жеке деректерсіз сипаттаңыз.", "Өзіңіз үшін фактілерді жазыңыз: не болды, қашан және қандай жұмыс мәселесін шешу керек. Оқиға мен болжамды ажыратыңыз; жазбаларды демо-жүйеге жүктемеңіз.", "/guide ішінде құпия деп белгіленген нақты қолданыстағы байланысты табыңыз. Демо-байланыстар өтініш қабылдамайды және құпия арна ұсынбайды.", "Жібермес бұрын өтінішті кім көретінін және сізбен қалай байланысатынын нақтылаңыз. Дереу көмек қажет болса, қолжетімді нақты шұғыл немесе ішкі арналарды пайдаланыңыз: чат тергеу немесе шұғыл көмек арнасы емес."],
+    en: ["Do not post other employees’ names, medical details, documents, secrets or customer data in chat. Use an anonymized description for an initial question.", "For your own report, note what happened, when and the work issue to resolve. Separate observations from assumptions; do not upload these notes to the demo.", "Find a current real contact marked confidential in /guide. Demo contacts cannot receive reports or provide a confidential channel.", "Before submitting, confirm who will see the report and how they will contact you. For immediate help, use real emergency or internal channels available to you: chat is not an investigation or emergency service."],
+  },
+};
+
+function demoResources(paths: string[]) {
+  try {
+    const origin = new URL(process.env.APP_ORIGIN ?? "");
+    if (origin.protocol !== "https:") return [];
+    return paths.map((path) => ({ label: `Career Quest · ${path}`, url: new URL(path, origin.origin).href }));
+  } catch { return []; }
+}
+
+export async function seedDemoGuide(pool: Pool, user: User, refresh = false) {
   return transaction(pool, async (db) => {
     await db.query("SELECT pg_advisory_xact_lock(2401904)");
     let created = 0;
+    let updated = 0;
     const topics = [
       {
         slug: "demo-it-access",
@@ -408,7 +445,7 @@ export async function seedDemoGuide(pool: Pool, user: User) {
       "Find an approved policy and verified contact at your organization. Do not enter passwords or personal documents in chat.",
     ];
     for (const entry of topics) {
-      const topic = (
+      let topic = (
         await db.query(
           `INSERT INTO guide_topics(slug,category,sensitivity,aliases,contexts) VALUES($1,$2,$3,$4,$5)
     ON CONFLICT(slug) DO NOTHING RETURNING id`,
@@ -421,8 +458,22 @@ export async function seedDemoGuide(pool: Pool, user: User) {
           ],
         )
       ).rows[0];
+      const existingTopic = !topic;
+      if (!topic && refresh) topic = (await db.query("SELECT id FROM guide_topics WHERE slug=$1", [entry.slug])).rows[0];
       if (!topic) continue;
       for (let i = 0; i < locales.length; i++) {
+        const content = demoInstructions[entry.slug]![locales[i]!]!;
+        const paths = [...new Set(content.join(" ").match(/\/(?:development|events|growth|guide|assistant)\b/g) ?? [])];
+        // Published versions are immutable. Replace only exact original templates,
+        // retaining their access, AI, approval and expiry settings in a new version.
+        const original = existingTopic ? (await db.query(
+          `SELECT a.* FROM guide_articles a WHERE topic_id=$1 AND locale=$2 AND synthetic AND version=1
+           AND status='published' AND title=$3 AND summary=$4 AND body=$5 AND applies_when=$3
+           AND steps=$6::jsonb AND resources='[]'::jsonb AND cardinality(tags)=0
+           AND NOT EXISTS (SELECT 1 FROM guide_articles newer WHERE newer.topic_id=a.topic_id AND newer.locale=a.locale AND newer.version>1)`,
+          [topic.id, locales[i], entry.titles[i], labels[i], `${labels[i]} ${steps[i]}`, JSON.stringify([steps[i]])],
+        )).rows[0] as GuideArticle | undefined : undefined;
+        if (existingTopic && !original) continue;
         const draft = await createDraft(
           db,
           user,
@@ -431,22 +482,57 @@ export async function seedDemoGuide(pool: Pool, user: User) {
             locale: locales[i],
             title: entry.titles[i],
             summary: labels[i],
-            body: `${labels[i]} ${steps[i]}`,
+            body: `${labels[i]}\n\n${content.join("\n\n")}`,
             appliesWhen: entry.titles[i],
-            steps: [steps[i]],
-            aiAllowed: true,
+            steps: content,
+            resources: demoResources(paths),
+            visibility: original?.visibility,
+            departments: original?.departments,
+            aiAllowed: original?.ai_allowed ?? true,
             synthetic: true,
           }),
         );
-        await db.query(
+        if (original) {
+          await db.query("UPDATE guide_articles SET status='archived',updated_at=now() WHERE id=$1", [original.id]);
+          await db.query(
+            `UPDATE guide_articles SET status='published',owner_user_id=$2,approved_by=old.approved_by,reviewed_at=old.reviewed_at,expires_at=old.expires_at
+             FROM guide_articles old WHERE guide_articles.id=$1 AND old.id=$3`,
+            [draft.id, original.owner_user_id, original.id],
+          );
+          updated++;
+        } else await db.query(
           `UPDATE guide_articles SET status='published',approved_by=$2,reviewed_at=now(),expires_at=now()+interval '90 days' WHERE id=$1`,
           [draft.id, user.id],
         );
-        created++;
+        if (!original) created++;
       }
     }
-    return { created, synthetic: true, realContactsConfigured: false };
+    const demoContacts = [
+      { label: "ИТ-поддержка / IT support (демо)", value: "support@career-quest.example", topics: ["demo-it-access"] },
+      { label: "HR / Отдел кадров (демо)", value: "hr@career-quest.example", topics: ["demo-leave", "demo-onboarding"] },
+      { label: "Куратор обучения / Learning coordinator (демо)", value: "learning@career-quest.example", topics: ["demo-learning"] },
+    ];
+    for (const contact of demoContacts) {
+      const existing = (await db.query("SELECT id FROM contact_channels WHERE synthetic AND channel='demo' AND label=$1 AND value=$2 LIMIT 1", [contact.label, contact.value])).rows[0];
+      const row = existing ?? (await db.query(
+        `INSERT INTO contact_channels(label,channel,value,description,synthetic,verified_by,verified_at,expires_at)
+         VALUES($1,'demo',$2,$3,true,$4,now(),now()+interval '90 days') RETURNING id`,
+        [contact.label, contact.value, "Демо / Demo / Демонстрация: адрес .example не принимает почту; реальный контакт организации не настроен. No real delivery. Нақты өтініш жіберілмейді.", user.id],
+      )).rows[0];
+      for (const slug of contact.topics) await db.query(
+        `INSERT INTO guide_routing_rules(topic_id,primary_contact_id)
+         SELECT id,$2 FROM guide_topics t WHERE slug=$1 AND NOT EXISTS
+         (SELECT 1 FROM guide_routing_rules r WHERE r.topic_id=t.id AND r.active)`,
+        [slug, row.id],
+      );
+    }
+    return { created, updated, synthetic: true, realContactsConfigured: false };
   });
+}
+
+/** Upgrade untouched demo templates only; edited and real organization content is preserved. */
+export async function refreshDemoGuideContent(pool: Pool, user: User) {
+  return seedDemoGuide(pool, user, true);
 }
 
 /** Only call after seedDemoAccounts and when DEMO_MODE is enabled. */

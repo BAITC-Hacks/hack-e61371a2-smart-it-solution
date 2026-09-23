@@ -90,7 +90,9 @@ test(
             assert.equal(rows.length, 1);
             assert.equal(rows[0]!.synthetic, true);
           }
-          assert.deepEqual(await guideContacts(pool!, employee), []);
+          const contacts = await guideContacts(pool!, employee);
+          assert.ok(contacts.length >= 3);
+          assert.ok(contacts.every((contact) => contact.synthetic && contact.channel === "demo"));
           assert.equal(
             (await invoke(employee, "/guide/hints?context=onboarding")).data
               .length,
