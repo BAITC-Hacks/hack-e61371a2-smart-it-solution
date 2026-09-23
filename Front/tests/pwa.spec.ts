@@ -1,0 +1,20 @@
+import {expect,test} from '@playwright/test';
+test.skip(process.env.CQ_E2E_PWA!=='1','Requires a production build at CQ_BASE_URL.');
+test('production PWA caches public assets only and shows an offline screen',async({page,context})=>{
+ await page.goto('/');
+ await page.evaluate(async()=>{await navigator.serviceWorker.ready;});
+ await expect.poll(()=>page.evaluate(()=>Boolean(navigator.serviceWorker.controller))).toBe(true);
+ const manifest=await (await page.request.get('/manifest.webmanifest')).json();
+ expect(manifest.display).toBe('standalone');
+ expect(manifest.icons.filter((icon:{type:string})=>icon.type==='image/png').map((icon:{sizes:string})=>icon.sizes)).toEqual(['192x192','512x512']);
+ const cdp=await context.newCDPSession(page);
+ const appManifest=await cdp.send('Page.getAppManifest');expect(appManifest.errors).toEqual([]);
+ await page.goto('/profile');
+ await page.evaluate(async()=>{await fetch('/api/v1/auth/demo-accounts');});
+ const cached=await page.evaluate(async()=>{const result:string[]=[];for(const key of await caches.keys()){for(const request of await(await caches.open(key)).keys())result.push(new URL(request.url).pathname);}return result.sort();});
+ expect(cached).toEqual(['/app-icon-192.png','/app-icon-512.png','/app-icon.svg','/manifest.webmanifest','/offline.html'].sort());
+ await context.setOffline(true);await page.goto('/development');
+ await expect(page.getByRole('heading',{name:/You are offline|Нет подключения|Қосылым жоқ/})).toBeVisible();
+ await expect(page.locator('#root')).toHaveCount(0);
+ await context.setOffline(false);await page.reload();await expect(page.getByTestId('demo-login-employee')).toBeVisible();
+});

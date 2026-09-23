@@ -1,0 +1,14 @@
+import type { Role } from '../../api';
+export type Locale = 'ru' | 'kk' | 'en';
+export type Context = 'onboarding' | 'review' | 'role_change' | 'learning_start' | 'learning_complete';
+export type Topic = { id:string; slug:string; category:string; sensitivity:'normal'|'sensitive'; priority:number; active:boolean; aliases:Record<Locale,string[]>; contexts:Context[] };
+export type Resource = {label:string;url:string};
+export type Article = {id:string;topic_id:string;locale:Locale;title:string;summary:string;body:string;applies_when:string;steps:string[];resources:Resource[];tags:string[];visibility:Role[];departments:string[];ai_allowed:boolean;synthetic:boolean;version:number;status:'draft'|'published'|'archived';reviewed_at:string|null;expires_at:string|null;owner_user_id:string;updated_at:string;category?:string;sensitivity?:'normal'|'sensitive';slug?:string;contacts?:GuideContact[]};
+export type GuideContact = {id:string;topicId:string;label:string;channel:'email'|'phone'|'url'|'demo';value:string;description:string;confidential:boolean;synthetic:boolean;urgency:'normal'|'urgent';priority:'primary'|'fallback';verifiedAt:string;expiresAt:string};
+export type ManagedContact = {id:string;label:string;channel:GuideContact['channel'];value:string;description:string;visibility:Role[];departments:string[];confidential:boolean;active:boolean;synthetic:boolean;verified_by:string|null;verified_at:string|null;expires_at:string;updated_at:string};
+export type Routing = {id:string;topic_id:string;department:string|null;primary_contact_id:string|null;fallback_contact_id:string|null;urgency:'normal'|'urgent';active:boolean};
+export type FeedbackKind = 'helpful'|'unhelpful'|'outdated'|'wrong_contact'|'incorrect';
+export type Feedback = {id:string;article_id:string;user_id:string;kind:FeedbackKind;comment:string;created_at:string;resolved_at:string|null;resolved_by:string|null};
+export type Thread = {id:string;title:string;locale:Locale;created_at:string;updated_at?:string;expires_at:string;messages?:Message[]};
+export type Answer = {id?:string;threadId?:string;content:string;source:'ai'|'fallback'|'verified_script';locale:Locale;scope:'own';citations:{id:string;title:string;href:string;reviewedAt?:string;synthetic?:boolean}[];contacts:GuideContact[];facts:{id:string;text:string;href:string}[];fallbackReason?:string;createdAt?:string};
+export type Message = {id:string;role:'user'|'assistant';content:string;response:Answer|null;source:Answer['source']|null;created_at:string};

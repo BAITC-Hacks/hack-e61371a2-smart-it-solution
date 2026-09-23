@@ -12,7 +12,9 @@ type FileProblem = 'fileEmpty' | 'fileJson' | 'fileRead' | 'fileShape' | 'fileTy
 type FileSlot = { file: File; reading: boolean; value?: Record<string, unknown> | string; problem?: FileProblem };
 type Slots = Partial<Record<FileKey, FileSlot>>;
 type ImportProblem = { key: keyof ImportsCopy; details?: { file?: string; field?: string; message: string }[] };
-type CheckedPackage = { result: ImportResult; payload: ImportBundle; revision: number; fileCount: number };
+type ImportChange = { new: number; updated: number; unchanged: number; sampleIds: { new: string[]; updated: string[] } };
+type DetailedImportResult = ImportResult & { changes?: Partial<Record<keyof ImportResult['counts'], ImportChange>>; warnings?: string[] };
+type CheckedPackage = { result: DetailedImportResult; payload: ImportBundle; revision: number; fileCount: number };
 
 const MAX_REQUEST_BYTES = 10 * 1024 * 1024;
 const fileKeys: FileKey[] = ['skills', 'employees', 'events', 'history'];
@@ -53,6 +55,19 @@ function PackageCounts({ counts, copy, locale, compact = false }: { counts: Impo
   return <dl className={compact ? 'import-counts import-counts-compact' : 'import-counts'}>
     {items.map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{new Intl.NumberFormat(locale).format(counts[key])}</dd></div>)}
   </dl>;
+}
+
+function PackageChanges({ result, copy, locale }: { result: DetailedImportResult; copy: ImportsCopy; locale: string }) {
+  const labels: Record<keyof ImportResult['counts'], string> = { skills: copy.skills, roleProfiles: copy.roleProfiles, employees: copy.employees, events: copy.events, history: copy.historyRecords };
+  const groups = Object.entries(result.changes ?? {}) as [keyof ImportResult['counts'], ImportChange][];
+  return <>
+    {groups.length > 0 && <section className="import-changes" aria-label={copy.changesTitle}>
+      <h3>{copy.changesTitle}</h3><p>{copy.changesNote}</p>
+      <div className="import-changes-table"><table><thead><tr><th>{copy.dataset}</th><th>{copy.newRecords}</th><th>{copy.updatedRecords}</th><th>{copy.unchangedRecords}</th></tr></thead><tbody>{groups.map(([key, change]) => <tr key={key}><th scope="row">{labels[key] ?? key}</th><td>{new Intl.NumberFormat(locale).format(change.new)}</td><td>{new Intl.NumberFormat(locale).format(change.updated)}</td><td>{new Intl.NumberFormat(locale).format(change.unchanged)}</td></tr>)}</tbody></table></div>
+      {groups.some(([, change]) => change.sampleIds.new.length || change.sampleIds.updated.length) && <details className="import-samples"><summary>{copy.sampleIds}</summary>{groups.map(([key, change]) => <div key={key}><strong>{labels[key] ?? key}</strong>{change.sampleIds.new.length > 0 && <p>{copy.newRecords}: <code>{change.sampleIds.new.join(', ')}</code></p>}{change.sampleIds.updated.length > 0 && <p>{copy.updatedRecords}: <code>{change.sampleIds.updated.join(', ')}</code></p>}</div>)}</details>}
+    </section>}
+    {result.warnings && result.warnings.length > 0 && <section className="import-warnings"><h3><AlertCircle size={17}/>{copy.warningsTitle}</h3><ul>{result.warnings.map((warning, index) => <li key={index}>{warning === 'Some employees have no explicit career goal; the next grade is inferred where possible.' ? copy.noGoalWarning : warning}</li>)}</ul></section>}
+  </>;
 }
 
 export function ImportsPage({ session, onDataChanged }: { session: Session; onDataChanged: () => void }) {
@@ -198,7 +213,7 @@ export function ImportsPage({ session, onDataChanged }: { session: Session; onDa
     previewRequest.current = controller;
     setBusy('preview');
     try {
-      const response = await api<ImportResult>('/imports/preview', { method: 'POST', body: payload, csrf: session.csrfToken, signal: controller.signal });
+      const response = await api<DetailedImportResult>('/imports/preview', { method: 'POST', body: payload, csrf: session.csrfToken, signal: controller.signal });
       if (mounted.current && !controller.signal.aborted && revision.current === requestedRevision) {
         setChecked({ payload, result: response.data, revision: requestedRevision, fileCount: selected.length });
       }
@@ -217,7 +232,7 @@ export function ImportsPage({ session, onDataChanged }: { session: Session; onDa
     setBusy('commit');
     setProblem(null);
     try {
-      const response = await api<ImportResult>('/imports/commit', { method: 'POST', body: snapshot.payload, csrf: session.csrfToken });
+      const response = await api<DetailedImportResult>('/imports/commit', { method: 'POST', body: snapshot.payload, csrf: session.csrfToken });
       if (!response.data.committed && !response.data.duplicate) throw new ApiError('', 200, undefined, 'INVALID_RESPONSE');
       // The parent still needs to refresh if the user changed pages during commit.
       onDataChanged();
@@ -293,6 +308,7 @@ export function ImportsPage({ session, onDataChanged }: { session: Session; onDa
       <div className="import-result-heading"><span className="import-result-icon"><CheckCircle2 size={25}/></span><div><h2 id="import-preview-title" tabIndex={-1}>{previewStatus}</h2><p>{applied ? copy.appliedDescription : duplicate ? copy.duplicateDescription : copy.previewDescription}</p></div>{canApply && <Button data-testid="import-commit" onClick={() => setConfirmOpen(true)}><Check size={17}/>{copy.apply}</Button>}</div>
       <PackageCounts counts={checked.result.counts} copy={copy} locale={locale}/>
       <p className="import-counts-note">{copy.countsNote}</p>
+      <PackageChanges result={checked.result} copy={copy} locale={locale}/>
       <details className="import-hash"><summary>{copy.hash}</summary><code>{checked.result.hash}</code></details>
       {busy === 'commit' && <p className="import-applying" role="status"><LoaderCircle className="import-spinning" size={17}/>{copy.applying}</p>}
     </section> : <section className="import-awaiting" aria-live="polite"><ShieldCheck size={24}/><div><h2>{copy.waitingTitle}</h2><p>{copy.waitingDescription}</p></div></section>}

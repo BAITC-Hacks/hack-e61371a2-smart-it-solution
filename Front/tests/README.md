@@ -1,6 +1,6 @@
 # Frontend browser checks
 
-`npm run test:e2e` runs the explicit UI contract fixtures in `frontend.contract.spec.ts`.
+`npm run test:e2e` runs 16 explicit UI contract scenarios across `frontend.contract.spec.ts`, `guide.semantic.spec.ts` and `navigation.contract.spec.ts`.
 Install the test browser once with `npx playwright install chromium`. To use an installed
 Chrome or Edge, set `CQ_BROWSER_CHANNEL=chrome` or `CQ_BROWSER_CHANNEL=msedge`.
 
@@ -39,3 +39,58 @@ Vite starts automatically unless a server is already listening on localhost:5173
 Set `CQ_BASE_URL` to use a different already-running frontend; its origin must match
 the backend's `APP_ORIGIN`. Reports and failure traces are generated under
 `playwright-report/` and `test-results/`.
+## Full platform acceptance
+
+`CQ_E2E_FULL_API=1` enables the full application scenarios. Use a newly created,
+seeded disposable database and the current full backend. `AI_ENABLED=false` is
+required for the guide test; no external integrations or worker should be enabled.
+These tests intentionally change synthetic goals, events, participation, plans,
+mentor/reward data, accounts, guide content, HR financial examples and notification
+preferences. They must never target a production or shared database.
+
+```powershell
+$env:CQ_E2E_FULL_API = '1'
+$env:CQ_BASE_URL = 'http://localhost:5173'
+$env:CQ_BROWSER_CHANNEL = 'msedge' # Or install Chromium and omit this.
+npx playwright test tests/career.full.api.spec.ts tests/growth.full.api.spec.ts tests/guide.full.api.spec.ts tests/platform.full.api.spec.ts
+```
+
+Run these suites with one worker. They create uniquely named synthetic records;
+career and growth tests share the demo employee, so do not run those two suites
+concurrently. The current-session revocation scenario needs the same dedicated
+password-account environment variables as the original real API suite, and expects
+that account to have no other active session.
+
+- Career: goal persistence, actual recommendations, HR preview/create/translation,
+  enrollment/start/completion, one skill increment, history and mobile layout.
+- Growth: 30/90/180 plans, version conflicts, preferences, comparison/simulation,
+  tasks, mentor opt-in/approval, reward policy/catalog, ID mapping and immutable
+  LMS retry after an error.
+- Guide: draft/publication/version/archive, contacts/routing/feedback, account
+  management/audit, assistant fallback/thread persistence/deletion, semantic SQL
+  fallback with paid inference disabled.
+- Platform: actual HR filters/tabs/simulation/approved financial inputs, manager
+  scope, notifications/preferences/calendar, session revocation and role boundaries.
+
+`guide.semantic.spec.ts` and `navigation.contract.spec.ts` use explicit mocked API
+responses to check semantic workflow idempotency, stale responses, activation,
+query preservation and safe notification links. They never call an AI provider.
+
+## Production PWA
+
+Build and run a preview separately:
+
+```powershell
+npm run build
+npm run preview -- --port 5174
+# In another terminal:
+$env:CQ_E2E_PWA = '1'
+$env:CQ_BASE_URL = 'http://localhost:5174'
+npx playwright test tests/pwa.spec.ts
+```
+
+This checks the manifest, cache allowlist, absence of API/profile content in the
+cache, offline fallback and recovery. The test uses a fresh browser context.
+
+Output directories `test-results*/` and `playwright-report/` are ignored by Git and
+by Vite's watcher, so traces cannot cause development-server reload loops.
