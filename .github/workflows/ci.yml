@@ -1,0 +1,60 @@
+name: Foundation checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: career_quest_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U test -d career_quest_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: Back
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: Back/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+        env:
+          TEST_DATABASE_URL: postgresql://test:test@localhost:5432/career_quest_test
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Front
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: Front/package-lock.json
+      - run: npm ci
+      - run: npm run build
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d --build --wait --wait-timeout 180
+      - run: |
+          curl --fail http://localhost:8080/
+          curl --fail http://localhost:8080/api/v1/health/ready
+      - if: always()
+        run: docker compose logs --tail 100 && docker compose down -v
