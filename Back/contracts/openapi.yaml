@@ -91,6 +91,9 @@
     },
     {
       "name": "integrations"
+    },
+    {
+      "name": "semantic-admin"
     }
   ],
   "paths": {
@@ -6068,10 +6071,7 @@
                     "data": {
                       "type": "array",
                       "items": {
-                        "type": "object",
-                        "properties": {},
-                        "additionalProperties": true,
-                        "description": "Additional returned database fields are permitted; stable domain fields are defined where applicable."
+                        "$ref": "#/components/schemas/Mentorship"
                       }
                     },
                     "meta": {
@@ -6413,10 +6413,7 @@
                     "data": {
                       "type": "array",
                       "items": {
-                        "type": "object",
-                        "properties": {},
-                        "additionalProperties": true,
-                        "description": "Additional returned database fields are permitted; stable domain fields are defined where applicable."
+                        "$ref": "#/components/schemas/PersonalTask"
                       }
                     },
                     "meta": {
@@ -6513,10 +6510,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "properties": {},
-                      "additionalProperties": true,
-                      "description": "Additional returned database fields are permitted; stable domain fields are defined where applicable."
+                      "$ref": "#/components/schemas/PersonalTask"
                     },
                     "meta": {
                       "$ref": "#/components/schemas/ResponseMeta"
@@ -6857,10 +6851,7 @@
                     "data": {
                       "type": "array",
                       "items": {
-                        "type": "object",
-                        "properties": {},
-                        "additionalProperties": true,
-                        "description": "Additional returned database fields are permitted; stable domain fields are defined where applicable."
+                        "$ref": "#/components/schemas/Recognition"
                       }
                     },
                     "meta": {
@@ -7397,10 +7388,7 @@
                     "data": {
                       "type": "array",
                       "items": {
-                        "type": "object",
-                        "properties": {},
-                        "additionalProperties": true,
-                        "description": "Additional returned database fields are permitted; stable domain fields are defined where applicable."
+                        "$ref": "#/components/schemas/TeamChallenge"
                       }
                     },
                     "meta": {
@@ -7996,10 +7984,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "properties": {},
-                      "additionalProperties": true,
-                      "description": "Additional returned database fields are permitted; stable domain fields are defined where applicable."
+                      "$ref": "#/components/schemas/RewardWallet"
                     },
                     "meta": {
                       "$ref": "#/components/schemas/ResponseMeta"
@@ -8070,13 +8055,24 @@
               "type": "string"
             },
             "description": "Token from /auth/login or /auth/me."
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 8
+            },
+            "description": "Reuse only for an exact retry of the same logical request. Access rights are checked again. Different payload or role/employee context produces 409."
           }
         ],
         "x-roles": [
           "authenticated"
         ],
         "x-access-scope": "current linked employee only; HR/admin without employeeId cannot use this endpoint",
-        "x-idempotency-required": false,
+        "x-idempotency-required": true,
         "responses": {
           "200": {
             "description": "Success",
@@ -8086,10 +8082,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "properties": {},
-                      "additionalProperties": true,
-                      "description": "Additional returned database fields are permitted; stable domain fields are defined where applicable."
+                      "$ref": "#/components/schemas/RewardWallet"
                     },
                     "meta": {
                       "$ref": "#/components/schemas/ResponseMeta"
@@ -8132,7 +8125,19 @@
             }
           }
         },
-        "description": "No retroactive credit for imported source history; rules must be approved/enabled. Corrections reconcile earned balance."
+        "description": "No retroactive credit for imported source history; rules must be approved/enabled. Corrections reconcile earned balance.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        }
       }
     },
     "/me/rewards/redeem": {
@@ -16094,9 +16099,58 @@
                       "type": "array",
                       "items": {
                         "type": "object",
-                        "properties": {},
-                        "additionalProperties": true,
-                        "description": "Additional returned database fields are permitted; stable domain fields are defined where applicable."
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "subscriptionId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "eventId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "pending",
+                              "sending",
+                              "delivered",
+                              "failed",
+                              "suppressed"
+                            ]
+                          },
+                          "attempts": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "nextAttemptAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "lastError": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "id",
+                          "subscriptionId",
+                          "eventId",
+                          "status",
+                          "attempts",
+                          "nextAttemptAt",
+                          "lastError"
+                        ]
                       }
                     },
                     "meta": {
@@ -16624,7 +16678,7 @@
             }
           }
         },
-        "description": "Durable deduplication is by providerKey + messageId (not Idempotency-Key). History uses external employee/event IDs which must be mapped. historyCsv is rejected; use the ordinary import API for CSV. Max body 10 MiB.",
+        "description": "Durable deduplication is by providerKey + messageId (not Idempotency-Key). History uses external employee/event IDs which must be mapped. historyCsv is rejected; use the ordinary import API for CSV. Max body 10 MiB. An active import lease returns 409 IMPORT_IN_PROGRESS; an expired/lost lease returns IMPORT_LEASE_EXPIRED.",
         "requestBody": {
           "required": true,
           "content": {
@@ -16648,11 +16702,10 @@
                   "history": {
                     "type": "array",
                     "items": {
-                      "type": "object",
-                      "properties": {},
-                      "additionalProperties": true,
-                      "description": "Additional returned database fields are permitted; stable domain fields are defined where applicable."
-                    }
+                      "$ref": "#/components/schemas/SourceHistory"
+                    },
+                    "minItems": 0,
+                    "maxItems": 100000
                   }
                 },
                 "required": [
@@ -16920,6 +16973,503 @@
         },
         "description": "Requires cq_oidc browser cookie and one-time state. Validates issuer/audience/nonce/signature/expiry. Subject must be explicitly mapped to an active non-demo account. Sets cq_session and redirects to APP_ORIGIN/.",
         "security": []
+      }
+    },
+    "/guide/semantic-search": {
+      "post": {
+        "summary": "Search accessible approved guide articles with measured semantic retrieval",
+        "operationId": "post_guide_semantic_search",
+        "tags": [
+          "guide"
+        ],
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            },
+            "description": "Must exactly equal APP_ORIGIN. Browser supplies it automatically."
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Token from /auth/login or /auth/me."
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 8
+            },
+            "description": "Required when executing the enabled semantic path; early SQL fallback accepts no key. Always send a stable key from the frontend to handle configuration changes and safe retries."
+          }
+        ],
+        "x-roles": [
+          "authenticated"
+        ],
+        "x-access-scope": "currently published, unexpired articles accessible to the current role and department; semantic candidates must also allow AI processing",
+        "x-idempotency-required": "conditional",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SemanticSearchResult"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": true
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Correlation ID for troubleshooting."
+              }
+            }
+          },
+          "default": {
+            "description": "Error. Stable application error.code; unauthorized object access often returns 404. See Error schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Correlation ID for troubleshooting."
+              }
+            }
+          }
+        },
+        "description": "Returns at most 3 articles. If semantic search is disabled, stale, incomplete, unavailable or over budget, returns authorized SQL search with source=sql and fallbackReason. A valid enabled semantic path requires Idempotency-Key even when its query vector is cached; an early SQL fallback does not. Frontend should send a stable key for every logical search. Current access and index revisions are rechecked before returning cached results. Embeddings use the shared AI budget and may call the configured paid provider. No provider calls occur on an early SQL fallback. SEMANTIC_REQUEST_IN_PROGRESS/UNCERTAIN and IDEMPOTENCY_CONFLICT return 409.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SemanticQuery"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/semantic/index": {
+      "post": {
+        "summary": "Index 1–10 approved articles using configured embeddings",
+        "operationId": "post_admin_semantic_index",
+        "tags": [
+          "semantic-admin"
+        ],
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            },
+            "description": "Must exactly equal APP_ORIGIN. Browser supplies it automatically."
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Token from /auth/login or /auth/me."
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 8
+            },
+            "description": "Reuse only for an exact retry of the same logical request. Access rights are checked again. Different payload or role/employee context produces 409."
+          }
+        ],
+        "x-roles": [
+          "admin"
+        ],
+        "x-access-scope": "authenticated",
+        "x-idempotency-required": true,
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SemanticIndexResult"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": true
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Correlation ID for troubleshooting."
+              }
+            }
+          },
+          "default": {
+            "description": "Error. Stable application error.code; unauthorized object access often returns 404. See Error schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Correlation ID for troubleshooting."
+              }
+            }
+          }
+        },
+        "description": "Requires AI_ENABLED, a server API key, AI_EMBEDDING_MODEL and a positive AI_EMBEDDING_USD_PER_MILLION. Current published, approved, unexpired ai_allowed article versions only. Sensitive identifiers are sanitized before provider processing; the combined article input is bounded to 2,000 characters. Returns actual indexed length and truncation flag. Provider usage remains recorded if later article revision validation fails. Indexing changes the index hash and invalidates a previous activation until a fresh benchmark passes. At most 500 articles are supported in the current corpus.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "articleIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 10,
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "articleIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/semantic/evaluate": {
+      "post": {
+        "summary": "Compare semantic and SQL recall at 3 against expected answers",
+        "operationId": "post_admin_semantic_evaluate",
+        "tags": [
+          "semantic-admin"
+        ],
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            },
+            "description": "Must exactly equal APP_ORIGIN. Browser supplies it automatically."
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Token from /auth/login or /auth/me."
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 8
+            },
+            "description": "Reuse only for an exact retry of the same logical request. Access rights are checked again. Different payload or role/employee context produces 409."
+          }
+        ],
+        "x-roles": [
+          "admin"
+        ],
+        "x-access-scope": "authenticated",
+        "x-idempotency-required": true,
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SemanticEvaluationResult"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": true
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Correlation ID for troubleshooting."
+              }
+            }
+          },
+          "default": {
+            "description": "Error. Stable application error.code; unauthorized object access often returns 404. See Error schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Correlation ID for troubleshooting."
+              }
+            }
+          }
+        },
+        "description": "Requires configured embeddings and current indexing of every accessible AI-allowed article in each requested locale. At least 10 distinct questions must remain after sanitization, case folding and whitespace normalization. Expected articles must be currently accessible, published, AI-allowed and match the query locale. passed requires mean semanticRecallAt3 >= sqlRecallAt3 and >= 0.70. The result is persisted against exact model/corpus/index hashes. Query embeddings may spend the shared AI budget. An index change during evaluation returns 409 INDEX_CHANGED. Failure to outperform the baseline is a successful HTTP response with passed=false, not an activation.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "queries": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "q": {
+                          "type": "string",
+                          "maxLength": 300,
+                          "minLength": 2
+                        },
+                        "locale": {
+                          "type": "string",
+                          "enum": [
+                            "ru",
+                            "kk",
+                            "en"
+                          ],
+                          "default": "ru"
+                        },
+                        "expectedArticleIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "minItems": 1,
+                          "maxItems": 3,
+                          "uniqueItems": true
+                        }
+                      },
+                      "required": [
+                        "q",
+                        "expectedArticleIds"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 10,
+                    "maxItems": 30
+                  }
+                },
+                "required": [
+                  "queries"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/semantic/enable": {
+      "post": {
+        "summary": "Enable only a passed current semantic benchmark, or disable",
+        "operationId": "post_admin_semantic_enable",
+        "tags": [
+          "semantic-admin"
+        ],
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            },
+            "description": "Must exactly equal APP_ORIGIN. Browser supplies it automatically."
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Token from /auth/login or /auth/me."
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 8
+            },
+            "description": "Reuse only for an exact retry of the same logical request. Access rights are checked again. Different payload or role/employee context produces 409."
+          }
+        ],
+        "x-roles": [
+          "admin"
+        ],
+        "x-access-scope": "authenticated",
+        "x-idempotency-required": true,
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SemanticEnableResult"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": true
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Correlation ID for troubleshooting."
+              }
+            }
+          },
+          "default": {
+            "description": "Error. Stable application error.code; unauthorized object access often returns 404. See Error schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Correlation ID for troubleshooting."
+              }
+            }
+          }
+        },
+        "description": "enabled=true requires a stored passed evaluation matching the exact current model, corpus and index; otherwise 409 EVALUATION_REQUIRED. Configuration changes, article revisions, visibility/expiry changes and index changes make activation stale, and search falls back to SQL until a current benchmark is approved. enabled=false is available even when the provider is not configured. Does not call an external model.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SemanticEnableInput"
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -17803,8 +18353,8 @@
           },
           "durationHours": {
             "type": "number",
-            "minimum": 0,
-            "maximum": 1000
+            "maximum": 1000,
+            "exclusiveMinimum": 0
           },
           "mandatory": {
             "type": "boolean"
@@ -17911,8 +18461,8 @@
           },
           "durationHours": {
             "type": "number",
-            "minimum": 0,
-            "maximum": 1000
+            "maximum": 1000,
+            "exclusiveMinimum": 0
           },
           "mandatory": {
             "type": "boolean"
@@ -18011,8 +18561,8 @@
           },
           "durationHours": {
             "type": "number",
-            "minimum": 0,
-            "maximum": 1000
+            "maximum": 1000,
+            "exclusiveMinimum": 0
           },
           "mandatory": {
             "type": "boolean"
@@ -20970,6 +21520,807 @@
           }
         },
         "additionalProperties": true
+      },
+      "Mentorship": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "menteeId": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "mentorId": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "declined",
+              "cancelled",
+              "completed"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "menteeName": {
+            "type": "string"
+          },
+          "mentorName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "menteeId",
+          "mentorId",
+          "message",
+          "status",
+          "createdAt",
+          "menteeName",
+          "mentorName"
+        ],
+        "additionalProperties": false
+      },
+      "PersonalTask": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "skillId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "targetLevel": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dueDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "completed",
+              "cancelled"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "status"
+        ],
+        "additionalProperties": true
+      },
+      "Recognition": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "senderId": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "recipientId": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "declined",
+              "reported",
+              "hidden"
+            ]
+          },
+          "senderName": {
+            "type": "string"
+          },
+          "recipientName": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "senderId",
+          "recipientId",
+          "message",
+          "status",
+          "senderName",
+          "recipientName",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "TeamChallenge": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "startsOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "endsOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "archived"
+            ]
+          },
+          "joined": {
+            "type": "boolean"
+          },
+          "memberCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "completedMembers": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "eventId": {
+                  "type": "string",
+                  "maxLength": 120,
+                  "minLength": 1
+                },
+                "title": {
+                  "type": "string"
+                },
+                "completed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "eventId",
+                "title",
+                "completed"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "startsOn",
+          "endsOn",
+          "status",
+          "joined",
+          "memberCount",
+          "completedMembers",
+          "events"
+        ],
+        "additionalProperties": false
+      },
+      "RewardWallet": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "balance": {
+            "type": "integer"
+          },
+          "spendableBalance": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "rules": {
+            "type": "string"
+          },
+          "pointsPerEvent": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "monthlyCap": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "ledger": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "delta": {
+                  "type": "integer"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "earned",
+                    "reversed",
+                    "redeemed",
+                    "refunded"
+                  ]
+                },
+                "eventId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 120,
+                      "minLength": 1
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "redemptionId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "id",
+                "delta",
+                "kind",
+                "eventId",
+                "redemptionId",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "redemptions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "rewardId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "cost": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "fulfilled",
+                    "cancelled"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "id",
+                "rewardId",
+                "title",
+                "cost",
+                "status",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "enabled",
+          "balance",
+          "spendableBalance",
+          "rules",
+          "pointsPerEvent",
+          "monthlyCap"
+        ],
+        "additionalProperties": true
+      },
+      "SemanticQuery": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 2
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "en"
+            ],
+            "default": "ru"
+          }
+        },
+        "required": [
+          "q"
+        ],
+        "additionalProperties": false
+      },
+      "SemanticArticle": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "topicId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "en"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "synthetic": {
+            "type": "boolean"
+          },
+          "score": {
+            "type": "number",
+            "minimum": -1,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "id",
+          "topicId",
+          "locale",
+          "title",
+          "summary",
+          "version",
+          "synthetic"
+        ],
+        "additionalProperties": false
+      },
+      "SemanticSearchResult": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "sql",
+              "semantic"
+            ]
+          },
+          "fallbackReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "articles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SemanticArticle"
+            },
+            "minItems": 0,
+            "maxItems": 3
+          },
+          "usageIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "source",
+          "fallbackReason",
+          "articles"
+        ],
+        "additionalProperties": false
+      },
+      "SemanticIndexResult": {
+        "type": "object",
+        "properties": {
+          "indexed": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "articleId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "revisionHash": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$",
+                  "maxLength": 64,
+                  "minLength": 64
+                },
+                "charactersIndexed": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2000
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "articleId",
+                "revisionHash",
+                "charactersIndexed",
+                "truncated"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 10
+          },
+          "model": {
+            "type": "string"
+          },
+          "corpusHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "maxLength": 64,
+            "minLength": 64
+          },
+          "indexHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "maxLength": 64,
+            "minLength": 64
+          },
+          "usageId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "indexed",
+          "model",
+          "corpusHash",
+          "indexHash",
+          "usageId"
+        ],
+        "additionalProperties": false
+      },
+      "SemanticEvaluationResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "model": {
+            "type": "string"
+          },
+          "corpusHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "maxLength": 64,
+            "minLength": 64
+          },
+          "indexHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "maxLength": 64,
+            "minLength": 64
+          },
+          "queryCount": {
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 30
+          },
+          "sqlRecallAt3": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "semanticRecallAt3": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "q": {
+                  "type": "string"
+                },
+                "locale": {
+                  "type": "string",
+                  "enum": [
+                    "ru",
+                    "kk",
+                    "en"
+                  ]
+                },
+                "expectedArticleIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "minItems": 1,
+                  "maxItems": 3,
+                  "uniqueItems": true
+                },
+                "sqlArticleIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "minItems": 0,
+                  "maxItems": 3
+                },
+                "semanticArticleIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "minItems": 0,
+                  "maxItems": 3
+                },
+                "sqlRecallAt3": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "semanticRecallAt3": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "q",
+                "locale",
+                "expectedArticleIds",
+                "sqlArticleIds",
+                "semanticArticleIds",
+                "sqlRecallAt3",
+                "semanticRecallAt3"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 10,
+            "maxItems": 30
+          },
+          "usageIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "model",
+          "corpusHash",
+          "indexHash",
+          "queryCount",
+          "sqlRecallAt3",
+          "semanticRecallAt3",
+          "passed",
+          "results",
+          "usageIds"
+        ],
+        "additionalProperties": false
+      },
+      "SemanticEnableInput": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "const": false
+              },
+              "evaluationId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "enabled"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "const": true
+              },
+              "evaluationId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "enabled",
+              "evaluationId"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "SemanticEnableResult": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "const": false
+              }
+            },
+            "required": [
+              "enabled"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "const": true
+              },
+              "evaluationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "model": {
+                "type": "string"
+              },
+              "corpusHash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "maxLength": 64,
+                "minLength": 64
+              },
+              "indexHash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "maxLength": 64,
+                "minLength": 64
+              }
+            },
+            "required": [
+              "enabled",
+              "evaluationId",
+              "model",
+              "corpusHash",
+              "indexHash"
+            ],
+            "additionalProperties": false
+          }
+        ]
       }
     }
   }

@@ -6,7 +6,7 @@ Node.js **24.19.0**, TypeScript 5.9, `node:http`, PostgreSQL 17, обычный 
 
 - [Контракт API для Front](contracts/README.md) и [OpenAPI](contracts/openapi.yaml).
 - [Карьерные сценарии](contracts/CAREER.md), [развитие и мотивация](contracts/GROWTH.md).
-- [Путеводитель и AI](contracts/GUIDE_AI.md), [HR, аккаунты и импорт](contracts/PLATFORM_ADMIN_HR.md).
+- [Путеводитель и AI](contracts/GUIDE_AI.md), [семантический поиск](contracts/SEMANTIC.md), [HR, аккаунты и импорт](contracts/PLATFORM_ADMIN_HR.md).
 - [Интеграции](contracts/PLATFORM_INTEGRATIONS.md), [эксплуатация и восстановление](OPERATIONS.md).
 - [Покрытие требований и оставшиеся внешние зависимости](BACKEND_PROGRESS.md).
 - [Разделение работы команды](../TEAM_WORK.md).
@@ -23,6 +23,7 @@ Node.js **24.19.0**, TypeScript 5.9, `node:http`, PostgreSQL 17, обычный 
 - HR skill gaps, отсутствие следующего шага, участие, воронка, сравнение программ, история оценок, симуляции, финансовые показатели из утверждённых данных.
 - Путеводитель RU/KK/EN: версии, публикация, срок действия, поиск, контакты, эскалация и отзывы.
 - Приватный помощник с проверяемыми источниками, fallback, расходным журналом, квотами и ограничением расходов.
+- Опциональный семантический поиск: индекс утверждённых статей, сравнение с SQL, включение после проверки качества, контроль доступа и общий AI-бюджет.
 - Уведомления, календарь ICS, фоновый worker, подписанные webhooks с повторами, opt-in messenger relay, LMS/HRIS mappings, заявки в подключённой IT/HR-системе.
 
 ```mermaid

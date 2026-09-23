@@ -38,6 +38,8 @@ services:
       AI_MAX_OUTPUT_TOKENS: ${AI_MAX_OUTPUT_TOKENS:-800}
       AI_MAX_INPUT_BYTES: ${AI_MAX_INPUT_BYTES:-24000}
       AI_RETENTION_DAYS: ${AI_RETENTION_DAYS:-30}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-}
+      AI_EMBEDDING_USD_PER_MILLION: ${AI_EMBEDDING_USD_PER_MILLION:-0}
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
@@ -47,11 +49,12 @@ services:
       RECOMMENDATION_WEIGHTS: ${RECOMMENDATION_WEIGHTS:-}
       WORKER_DELIVERY_ENABLED: ${WORKER_DELIVERY_ENABLED:-false}
     command:
-      [
-        "sh",
-        "-c",
-        "node dist/src/cli.js migrate && node dist/src/cli.js seed && node dist/src/index.js",
-      ]
+      - sh
+      - -c
+      - >-
+        node dist/src/cli.js migrate &&
+        if [ "$$DEMO_MODE" = true ]; then node dist/src/cli.js seed; fi &&
+        exec node dist/src/index.js
     ports: ["127.0.0.1:3001:3001"]
     depends_on:
       db: { condition: service_healthy }
