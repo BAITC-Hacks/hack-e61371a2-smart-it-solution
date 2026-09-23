@@ -326,6 +326,26 @@ test(
         "guide and assistant mounted at /api/v1, localized content and owner-only threads",
         async () => {
           assert.equal((await get("/guide/topics", employee)).length, 5);
+          const search = await write("/guide/semantic-search", employee, {
+            q: "отпуск",
+            locale: "ru",
+          });
+          assert.equal(search.source, "sql");
+          assert.equal(search.fallbackReason, "DISABLED");
+          await write(
+            "/admin/semantic/index",
+            employee,
+            { articleIds: [] },
+            "POST",
+            403,
+          );
+          await write(
+            "/admin/semantic/index",
+            root,
+            { articleIds: [] },
+            "POST",
+            503,
+          );
           for (const locale of ["ru", "kk", "en"])
             assert.equal(
               (await get(`/guide/articles?locale=${locale}`, employee)).length,

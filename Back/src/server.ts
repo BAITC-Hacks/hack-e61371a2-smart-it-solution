@@ -26,6 +26,7 @@ import { handleAnalytics } from "./analytics.js";
 import { handleIntegrations } from "./integrations.js";
 import { handleAdministration } from "./administration.js";
 import { handleSso } from "./sso.js";
+import { handleSemantic } from "./semantic.js";
 
 function cookieToken(req: IncomingMessage) {
   return (
@@ -270,6 +271,7 @@ export function createApp(pool: Pool, config: Config) {
         body: (limit = 65536) => (parsedBody ??= body(req, limit)),
       };
       for (const handler of [
+        handleSemantic,
         handleAdministration,
         handleCareer,
         handleGuide,
