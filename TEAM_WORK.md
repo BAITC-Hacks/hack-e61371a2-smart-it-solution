@@ -15,6 +15,7 @@
 
 Проверено: у `jokermokerpokershoker` есть `push`, но нет `admin`/`maintain`. При необходимости приглашение нового участника выдаёт владелец репозитория/организатор; из текущего аккаунта это сделать нельзя.
 
+Backend и стартовый Front находятся в [PR #3](https://github.com/BAITC-Hacks/hack-e61371a2-smart-it-solution/pull/3), ветка `codex/foundation-auth-data`.
 Backend, стартовый Front и Docker уже объединены в `main` через PR #3–5. Новую frontend-ветку создавать от актуального `origin/main`.
 
 ```bash
