@@ -5,6 +5,7 @@ import { ApiError, api, type Profile, type User } from '../api';
 import { useI18n } from '../i18n';
 import { Avatar, Badge, Button, EmptyState, ErrorState, Heading, Loading } from '../components/ui';
 import { dateLocales, peopleCopy } from './people.copy';
+import { navigationCopy } from '../navigation.copy';
 import './people.css';
 
 export function ProfilePage({ id, user }: { id: string; user: User }) {
@@ -52,6 +53,8 @@ export function ProfilePage({ id, user }: { id: string; user: User }) {
           <div className="cq-profile-identity-main"><div className="cq-profile-avatar"><Avatar name={profile.name} /></div><div><div className="cq-profile-name-line"><h2>{profile.name}</h2>{own && <Badge>{c.you}</Badge>}</div><p className="cq-profile-role">{profile.role}<span aria-hidden="true">·</span>{profile.grade || c.notSet}</p><p className="cq-profile-dept"><BriefcaseBusiness size={16} aria-hidden="true" />{profile.department || c.notSet}</p></div></div>
           <div className="cq-profile-id"><span>{c.employeeId}</span><strong>{profile.id}</strong></div>
         </section>
+
+        <div className="profile-feature-links"><Button asChild><Link href={`/people/${encodeURIComponent(profile.id)}/development`}>{navigationCopy[locale].profileDevelopment}<ArrowUpRight size={16}/></Link></Button><Button variant="secondary" asChild><Link href={`/history?employeeId=${encodeURIComponent(profile.id)}`}>{navigationCopy[locale].profileHistory}</Link></Button></div>
 
         <div className="cq-profile-grid">
           <section className="cq-profile-panel cq-profile-details" aria-labelledby="profile-details-title">

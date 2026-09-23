@@ -1,13 +1,17 @@
 import { Check, CircleUserRound, FileClock, Layers3, LockKeyhole, ShieldCheck, Upload, Users, X } from 'lucide-react';
-import type { User } from '../api';
+import type { Session } from '../api';
+import { Sessions } from '../features/platform/Sessions';
+import { navigationCopy } from '../navigation.copy';
 import { appCopy } from '../app.copy';
 import { Avatar, Badge, Heading } from '../components/ui';
 import { useI18n } from '../i18n';
 import './access.css';
 
-export function AccessPage({ user }: { user: User }) {
+export function AccessPage({ session }: { session: Session }) {
+  const {user} = session;
   const { locale, t } = useI18n();
   const c = appCopy[locale];
+  const nav = navigationCopy[locale];
   const organizationAccess = user.role === 'hr' || user.role === 'admin';
   const admin = user.role === 'admin';
   const scope = user.role === 'employee' ? (user.employeeId ? c.scopeSelf : c.notLinked) : user.role === 'manager' ? c.scopeTeam : c.scopeOrganization;
@@ -16,6 +20,15 @@ export function AccessPage({ user }: { user: User }) {
     { key: 'reports', icon: Users, label: c.directReports, allowed: user.role === 'manager' || organizationAccess },
     { key: 'organization', icon: Users, label: c.allProfiles, allowed: organizationAccess },
     { key: 'catalog', icon: Layers3, label: c.sharedCatalogs, allowed: true },
+    { key: 'career', icon: Layers3, label: nav.development, allowed: Boolean(user.employeeId) || user.role !== 'employee' },
+    { key: 'growth', icon: Layers3, label: nav.growth, allowed: Boolean(user.employeeId), detail: !user.employeeId ? c.notLinked : undefined },
+    { key: 'guide', icon: FileClock, label: nav.guide, allowed: true },
+    { key: 'assistant', icon: FileClock, label: nav.assistant, allowed: true },
+    { key: 'analytics', icon: Users, label: nav.hr, allowed: user.role !== 'employee' },
+    { key: 'eventsAdmin', icon: Layers3, label: nav.eventsAdmin, allowed: organizationAccess },
+    { key: 'guideAdmin', icon: FileClock, label: nav.guideAdmin, allowed: organizationAccess },
+    { key: 'growthAdmin', icon: Users, label: nav.growthAdmin, allowed: organizationAccess },
+    { key: 'settings', icon: ShieldCheck, label: nav.settings, allowed: admin },
     { key: 'imports', icon: Upload, label: c.manageImports, allowed: admin },
     { key: 'history', icon: FileClock, label: c.uploadHistory, allowed: admin },
   ];
@@ -45,5 +58,6 @@ export function AccessPage({ user }: { user: User }) {
     </section>
 
     <aside className="cq-access-session"><span><LockKeyhole size={20} aria-hidden="true" /></span><div><h2>{c.sessionSecurity}</h2><p>{c.sessionSecurityText}</p></div></aside>
+    <Sessions session={session} />
   </div>;
 }

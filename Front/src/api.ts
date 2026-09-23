@@ -1,3 +1,4 @@
+import { domainErrorText } from './api-errors';
 export type Role = 'employee' | 'manager' | 'hr' | 'admin';
 export type User = { id: string; login: string; displayName: string; role: Role; employeeId: string | null; demo: boolean };
 export type Session = { user: User; csrfToken: string };
@@ -10,7 +11,7 @@ export type ImportResult = { hash: string; counts: ImportCounts; duplicate: bool
 export type ImportBatch = { id: string; version: string; asOfDate: string; counts: ImportCounts; importedAt: string };
 export type ApiIssue = { file?: string; field?: string; message: string };
 export type PageMeta = { total: number; page: number; limit: number };
-export type ApiResponse<T> = { data: T; meta?: PageMeta };
+export type ApiResponse<T, M = PageMeta> = { data: T; meta?: M };
 
 const errors = {
   ru: { NETWORK_ERROR: 'Не удаётся связаться с сервером. Проверьте подключение и повторите попытку.', REQUEST_TIMEOUT: 'Сервер отвечает дольше обычного. Повторите попытку.', INVALID_RESPONSE: 'Сервер вернул неожиданный ответ. Повторите попытку.', INVALID_CREDENTIALS: 'Неверный логин или пароль.', UNAUTHENTICATED: 'Сессия завершилась. Войдите ещё раз.', FORBIDDEN: 'У вашей роли нет доступа к этому действию.', NOT_FOUND: 'Данные не найдены или недоступны.', BODY_TOO_LARGE: 'Размер набора превышает 10 МБ.', RATE_LIMITED: 'Слишком много попыток входа. Попробуйте позже.', CSRF_REJECTED: 'Сессия обновилась. Перезагрузите страницу и повторите действие.', ORIGIN_REJECTED: 'Адрес приложения не разрешён сервером. Обратитесь к администратору.', INVALID_DATASET: 'В наборе обнаружены ошибки. Проверьте подробности ниже.', VALIDATION_ERROR: 'Проверьте введённые данные.', NOT_READY: 'Сервис ещё не готов. Повторите попытку чуть позже.', INTERNAL_ERROR: 'Не удалось выполнить запрос. Повторите попытку.' },
@@ -20,19 +21,19 @@ const errors = {
 function errorText(code: string) {
   const language = document.documentElement.lang;
   const copy = errors[language === 'kk' || language === 'en' ? language : 'ru'];
-  return copy[code as keyof typeof copy] ?? copy.INTERNAL_ERROR;
+  return copy[code as keyof typeof copy] ?? domainErrorText(code, language) ?? copy.INTERNAL_ERROR;
 }
 export class ApiError extends Error {
   constructor(message: string, public status: number, public details?: ApiIssue[], public code = 'INTERNAL_ERROR') { super(message); this.name = 'ApiError'; }
 }
-export async function api<T>(path: string, options: { method?: string; body?: unknown; csrf?: string; signal?: AbortSignal } = {}): Promise<ApiResponse<T>> {
-  const timeout = AbortSignal.timeout(25_000);
+export async function api<T, M = PageMeta>(path: string, options: { method?: string; body?: unknown; csrf?: string; idempotencyKey?: string; signal?: AbortSignal; timeoutMs?: number } = {}): Promise<ApiResponse<T, M>> {
+  const timeout = AbortSignal.timeout(options.timeoutMs ?? 25_000);
   const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
   let response: Response;
   try {
     response = await fetch(`/api/v1${path}`, {
       method: options.method ?? 'GET', credentials: 'same-origin', signal,
-      headers: { Accept: 'application/json', ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(options.csrf ? { 'X-CSRF-Token': options.csrf } : {}) },
+      headers: { Accept: 'application/json', ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(options.csrf ? { 'X-CSRF-Token': options.csrf } : {}), ...(options.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : {}) },
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     });
   } catch (error) {
@@ -40,7 +41,11 @@ export async function api<T>(path: string, options: { method?: string; body?: un
     const code = timeout.aborted ? 'REQUEST_TIMEOUT' : 'NETWORK_ERROR';
     throw new ApiError(errorText(code), 0, undefined, code);
   }
-  const payload = await response.json().catch(() => null);
+  const payload = await response.json().catch(error => {
+    if (options.signal?.aborted) throw error;
+    if (timeout.aborted) throw new ApiError(errorText('REQUEST_TIMEOUT'), 0, undefined, 'REQUEST_TIMEOUT');
+    return null;
+  });
   if (!response.ok) {
     if (response.status === 401 && path !== '/auth/login' && path !== '/auth/demo-accounts') window.dispatchEvent(new Event('session-expired'));
     const code = typeof payload?.error?.code === 'string' ? payload.error.code : 'INTERNAL_ERROR';
@@ -48,5 +53,5 @@ export async function api<T>(path: string, options: { method?: string; body?: un
     throw new ApiError(errorText(code), response.status, details, code);
   }
   if (!payload || !Object.prototype.hasOwnProperty.call(payload, 'data')) throw new ApiError(errorText('INVALID_RESPONSE'), response.status, undefined, 'INVALID_RESPONSE');
-  return payload as ApiResponse<T>;
+  return payload as ApiResponse<T, M>;
 }
