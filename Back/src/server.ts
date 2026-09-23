@@ -17,15 +17,16 @@ import {
 } from "./auth.js";
 import { importBundle, ImportError, parseBundle } from "./imports.js";
 
-class HttpError extends Error {
-  constructor(
-    public status: number,
-    public code: string,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+import { HttpError, type RouteContext } from "./http.js";
+import { handleCareer } from "./career.js";
+import { handleGuide } from "./guide.js";
+import { handleAssistant } from "./ai.js";
+import { handleGrowth } from "./growth.js";
+import { handleAnalytics } from "./analytics.js";
+import { handleIntegrations } from "./integrations.js";
+import { handleAdministration } from "./administration.js";
+import { handleSso } from "./sso.js";
+
 function cookieToken(req: IncomingMessage) {
   return (
     (req.headers.cookie ?? "")
@@ -94,6 +95,7 @@ export function createApp(pool: Pool, config: Config) {
         send({ status: "ready" });
         return;
       }
+      if (await handleSso(pool, config, req, res, url, send)) return;
       if (method === "GET" && path === "/api/v1/auth/demo-accounts") {
         const data = config.demo
           ? (
@@ -209,6 +211,30 @@ export function createApp(pool: Pool, config: Config) {
         res.setHeader("Set-Cookie", sessionCookie("", 0));
         send({ loggedOut: true });
         return;
+      }
+      let parsedBody: Promise<unknown> | undefined;
+      const context: RouteContext = {
+        pool,
+        config,
+        user,
+        path,
+        method,
+        url,
+        req,
+        requestId,
+        send,
+        body: (limit = 65536) => (parsedBody ??= body(req, limit)),
+      };
+      for (const handler of [
+        handleAdministration,
+        handleCareer,
+        handleGuide,
+        handleAssistant,
+        handleGrowth,
+        handleAnalytics,
+        handleIntegrations,
+      ]) {
+        if (await handler(context)) return;
       }
       const access = scope(user);
       if (method === "GET" && path === "/api/v1/workspace") {
@@ -335,6 +361,18 @@ export function createApp(pool: Pool, config: Config) {
           field: i.path.join("."),
           message: i.message,
         }));
+      } else if (
+        typeof e === "object" &&
+        e !== null &&
+        "code" in e &&
+        ["23505", "23503", "23514", "22P02"].includes(String(e.code))
+      ) {
+        status = e.code === "23505" ? 409 : 422;
+        code = e.code === "23505" ? "CONFLICT" : "CONSTRAINT_VIOLATION";
+        message =
+          e.code === "23505"
+            ? "Такая запись уже существует"
+            : "Значение или ссылка не соответствует ограничениям данных";
       }
       if (status === 500)
         console.error(

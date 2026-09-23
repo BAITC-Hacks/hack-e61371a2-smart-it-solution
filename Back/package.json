@@ -14,7 +14,9 @@
     "migrate": "tsx --env-file-if-exists=.env src/cli.ts migrate",
     "seed": "tsx --env-file-if-exists=.env src/cli.ts seed",
     "account": "tsx --env-file-if-exists=.env src/cli.ts account",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "worker": "tsx --env-file-if-exists=.env src/worker.ts",
+    "worker:once": "tsx --env-file-if-exists=.env src/worker.ts --once"
   },
   "dependencies": {
     "csv-parse": "^7.0.2",
