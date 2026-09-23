@@ -121,6 +121,73 @@ test("PostgreSQL integration", { skip: !databaseUrl }, async (t) => {
         ImportError,
       );
     });
+    await t.test(
+      "preview reports changes and catalog import preserves referenced session identity/capacity",
+      async () => {
+        const unchanged = await importBundle(pool!, fixture, { commit: false });
+        assert.equal(unchanged.changes.events?.unchanged, 40);
+        assert.equal(unchanged.changes.employees?.unchanged, 200);
+        const event = structuredClone(
+          fixture.events!.events.find((e) => e.upcoming_sessions.length > 0)!,
+        );
+        const session = (
+          await pool!.query(
+            "SELECT id FROM event_sessions WHERE event_id=$1 ORDER BY session_date LIMIT 1",
+            [event.event_id],
+          )
+        ).rows[0];
+        await pool!.query("UPDATE event_sessions SET capacity=7 WHERE id=$1", [
+          session.id,
+        ]);
+        const participation = (
+          await pool!.query(
+            "INSERT INTO participations(employee_id,event_id,date,status,completion_pct,assigned_by,session_id) VALUES($1,$2,$3,'declined',0,'self',$4) RETURNING id",
+            [
+              fixture.employees!.employees[0]!.employee_id,
+              event.event_id,
+              fixture.events!.meta.as_of_date,
+              session.id,
+            ],
+          )
+        ).rows[0];
+        event.title += " updated";
+        const patch: Bundle = {
+          events: { meta: fixture.events!.meta, events: [event] },
+        };
+        assert.equal(
+          (await importBundle(pool!, patch, { commit: false })).changes.events
+            ?.updated,
+          1,
+        );
+        await importBundle(pool!, patch, { commit: true });
+        assert.equal(
+          (
+            await pool!.query(
+              "SELECT capacity FROM event_sessions WHERE id=$1",
+              [session.id],
+            )
+          ).rows[0].capacity,
+          7,
+        );
+        event.upcoming_sessions = [];
+        await assert.rejects(
+          importBundle(pool!, patch, { commit: true }),
+          ImportError,
+        );
+        await pool!.query("DELETE FROM participations WHERE id=$1", [
+          participation.id,
+        ]);
+        const future = {
+          ...fixture.history![0]!,
+          record_id: "FUTURE_INVALID",
+          date: "2027-01-01",
+        };
+        await assert.rejects(
+          importBundle(pool!, { history: [future] }, { commit: true }),
+          ImportError,
+        );
+      },
+    );
     await seedDemoAccounts(pool);
     const config: Config = {
       databaseUrl: databaseUrl!,

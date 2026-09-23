@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { notificationText } from "./notification-copy.js";
 import { z } from "zod";
 import { readAiConfig } from "./ai-config.js";
 import {
@@ -849,11 +850,16 @@ async function promoteWaiter(
       waiter.id,
     );
     await db.query(
-      "INSERT INTO notifications(employee_id,kind,title,body,link,dedupe_key) VALUES($1,'waitlist','Место освободилось','Вы переведены из очереди в список участников',$2,$3) ON CONFLICT(dedupe_key) DO NOTHING",
+      "INSERT INTO notifications(employee_id,kind,title,body,link,dedupe_key) VALUES($1,'waitlist',$4,$5,$2,$3) ON CONFLICT(dedupe_key) DO NOTHING",
       [
         waiter.employee_id,
         `/events/${waiter.event_id}`,
         `waitlist:${waiter.id}`,
+        notificationText("Место освободилось", profile.employee.language),
+        notificationText(
+          "Вы переведены из очереди в список участников",
+          profile.employee.language,
+        ),
       ],
     );
     return true;

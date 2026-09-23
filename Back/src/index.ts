@@ -1,7 +1,11 @@
 import { readConfig } from "./config.js";
 import { createPool } from "./db.js";
 import { createApp } from "./server.js";
+import { readAiConfig } from "./ai-config.js";
+import { readSsoConfig } from "./sso.js";
 const config = readConfig();
+readAiConfig();
+readSsoConfig(config);
 const pool = createPool(config.databaseUrl);
 pool.on("error", () =>
   console.error(JSON.stringify({ level: "error", code: "IDLE_DB_CONNECTION" })),

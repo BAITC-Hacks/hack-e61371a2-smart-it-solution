@@ -127,7 +127,11 @@ export function parseBundle(input: unknown): Bundle {
   const raw = { ...input } as Record<string, unknown>;
   if ("historyCsv" in raw && "history" in raw)
     throw new ImportError([
-      { file: "history", field: "", message: "Provide history or historyCsv, not both" },
+      {
+        file: "history",
+        field: "",
+        message: "Provide history or historyCsv, not both",
+      },
     ]);
   if ("historyCsv" in raw) {
     try {
@@ -164,13 +168,11 @@ export function parseBundle(input: unknown): Bundle {
   const result = bundle.strict().safeParse(raw);
   if (!result.success)
     throw new ImportError(
-      result.error.issues
-        .slice(0, 100)
-        .map((i) => ({
-          file: String(i.path[0] ?? "dataset"),
-          field: i.path.slice(1).join("."),
-          message: i.message,
-        })),
+      result.error.issues.slice(0, 100).map((i) => ({
+        file: String(i.path[0] ?? "dataset"),
+        field: i.path.slice(1).join("."),
+        message: i.message,
+      })),
     );
   return result.data;
 }
@@ -269,6 +271,13 @@ async function validateReferences(c: PoolClient, b: Bundle) {
   const metas = [b.skills?.meta, b.employees?.meta, b.events?.meta].filter(
     (x) => x !== undefined,
   );
+  const asOfDate =
+    metas[0]?.as_of_date ??
+    (
+      await c.query(
+        "SELECT as_of_date::text AS date FROM dataset_batches ORDER BY imported_at DESC LIMIT 1",
+      )
+    ).rows[0]?.date;
   if (new Set(metas.map((x) => x.as_of_date)).size > 1)
     issue("dataset", "meta.as_of_date", "Snapshot dates differ");
   for (const p of b.skills?.role_profiles ?? []) {
@@ -326,6 +335,24 @@ async function validateReferences(c: PoolClient, b: Bundle) {
       }
     }
   for (const e of b.events?.events ?? []) {
+    const old = (
+      await c.query("SELECT format FROM events WHERE event_id=$1", [e.event_id])
+    ).rows[0];
+    if (
+      old &&
+      old.format !== e.format &&
+      (
+        await c.query(
+          "SELECT 1 FROM participations WHERE event_id=$1 LIMIT 1",
+          [e.event_id],
+        )
+      ).rowCount
+    )
+      issue(
+        "events",
+        e.event_id,
+        "Cannot change event format after participation history exists",
+      );
     checkSkills(
       [
         ...e.develops_skills.map((s) => s.skill_id),
@@ -344,8 +371,22 @@ async function validateReferences(c: PoolClient, b: Bundle) {
       `${e.event_id}.develops_skills`,
     );
     unique(e.upcoming_sessions, "events", `${e.event_id}.upcoming_sessions`);
+    const removed = await c.query(
+      `SELECT s.session_date::text AS date FROM event_sessions s
+      WHERE s.event_id=$1 AND NOT(s.session_date=ANY($2::date[]))
+      AND EXISTS(SELECT 1 FROM participations p WHERE p.session_id=s.id)`,
+      [e.event_id, e.upcoming_sessions],
+    );
+    if (removed.rowCount)
+      issue(
+        "events",
+        e.event_id,
+        "Cannot remove sessions referenced by participation history; retain their dates",
+      );
   }
   for (const h of b.history ?? []) {
+    if (asOfDate && h.date > asOfDate)
+      issue("history", h.record_id, "History date is after dataset snapshot");
     if (!employeeRows.has(h.employee_id))
       issue("history", h.record_id, "Unknown employee");
     if (!events.has(h.event_id)) issue("history", h.record_id, "Unknown event");
@@ -357,6 +398,121 @@ async function validateReferences(c: PoolClient, b: Bundle) {
   }
   if (errors.length) throw new ImportError(errors);
 }
+async function previewChanges(c: PoolClient, b: Bundle) {
+  const result: Record<
+    string,
+    {
+      new: number;
+      updated: number;
+      unchanged: number;
+      sampleIds: { new: string[]; updated: string[] };
+    }
+  > = {};
+  const compare = (
+    name: string,
+    incoming: unknown[],
+    existing: unknown[],
+    key: (v: any) => string,
+  ) => {
+    const byId = new Map(existing.map((v) => [key(v), canonical(v)]));
+    const stats = {
+      new: 0,
+      updated: 0,
+      unchanged: 0,
+      sampleIds: { new: [] as string[], updated: [] as string[] },
+    };
+    for (const v of incoming) {
+      const id = key(v);
+      const status = !byId.has(id)
+        ? "new"
+        : byId.get(id) === canonical(v)
+          ? "unchanged"
+          : "updated";
+      stats[status]++;
+      if (status !== "unchanged" && stats.sampleIds[status].length < 50)
+        stats.sampleIds[status].push(id);
+    }
+    result[name] = stats;
+  };
+  if (b.skills) {
+    compare(
+      "skills",
+      b.skills.skills,
+      (await c.query("SELECT * FROM skills")).rows,
+      (v) => v.skill_id,
+    );
+    const profiles = (
+      await c.query(`SELECT p.role,p.grade,
+   COALESCE((SELECT jsonb_object_agg(skill_id,required_level) FROM role_requirements r WHERE r.role=p.role AND r.grade=p.grade),'{}') AS required_skills,
+   ARRAY(SELECT skill_id FROM role_requirements r WHERE r.role=p.role AND r.grade=p.grade AND is_critical ORDER BY skill_id) AS critical_skills FROM role_profiles p`)
+    ).rows;
+    compare(
+      "roleProfiles",
+      b.skills.role_profiles.map((p) => ({
+        ...p,
+        critical_skills: [...p.critical_skills].sort(),
+      })),
+      profiles,
+      (v) => v.role + "/" + v.grade,
+    );
+  }
+  if (b.employees) {
+    const employees = (
+      await c.query(
+        `SELECT employee_id,full_name,department,role,grade,manager_id,hire_date::text,tenure_months,work_format,preferred_language,last_review_date::text,
+   COALESCE((SELECT jsonb_object_agg(skill_id,assessed_level) FROM employee_skill_baselines s WHERE s.employee_id=e.employee_id),'{}') AS skills,
+   (SELECT jsonb_build_object('target_role',g.target_role,'target_grade',g.target_grade) FROM career_goals g WHERE g.employee_id=e.employee_id AND g.status='active') AS career_goal FROM employees e WHERE employee_id=ANY($1::text[])`,
+        [b.employees.employees.map((e) => e.employee_id)],
+      )
+    ).rows;
+    compare(
+      "employees",
+      b.employees.employees,
+      employees,
+      (v) => v.employee_id,
+    );
+  }
+  if (b.events) {
+    const events = (
+      await c.query(
+        `SELECT event_id,title,description,type,format,duration_hours::float,mandatory,
+   ARRAY(SELECT role FROM event_target_roles r WHERE r.event_id=e.event_id ORDER BY role) AS target_roles,
+   ARRAY(SELECT grade::text FROM event_target_grades r WHERE r.event_id=e.event_id ORDER BY grade) AS target_grades,
+   COALESCE((SELECT jsonb_agg(jsonb_build_object('skill_id',skill_id,'gain',gain,'max_level',max_level) ORDER BY skill_id) FROM event_skill_effects s WHERE s.event_id=e.event_id),'[]') AS develops_skills,
+   COALESCE((SELECT jsonb_object_agg(skill_id,min_level) FROM event_prerequisites p WHERE p.event_id=e.event_id),'{}') AS prerequisites,
+   ARRAY(SELECT session_date::text FROM event_sessions s WHERE s.event_id=e.event_id ORDER BY session_date) AS upcoming_sessions FROM events e WHERE event_id=ANY($1::text[])`,
+        [b.events.events.map((e) => e.event_id)],
+      )
+    ).rows;
+    compare(
+      "events",
+      b.events.events.map((e) => ({
+        ...e,
+        target_roles: [...e.target_roles].sort(),
+        target_grades: [...e.target_grades].sort(),
+        develops_skills: [...e.develops_skills].sort((a, b) =>
+          a.skill_id.localeCompare(b.skill_id),
+        ),
+        upcoming_sessions: [...e.upcoming_sessions].sort(),
+      })),
+      events,
+      (v) => v.event_id,
+    );
+  }
+  if (b.history)
+    compare(
+      "history",
+      b.history,
+      (
+        await c.query(
+          "SELECT source_record_id AS record_id,employee_id,event_id,date::text,due_date::text,status,completion_pct,score,feedback_rating,assigned_by FROM participations WHERE source_record_id=ANY($1::text[])",
+          [b.history.map((h) => h.record_id)],
+        )
+      ).rows,
+      (v) => v.record_id,
+    );
+  return result;
+}
 export async function importBundle(
   pool: Pool,
   b: Bundle,
@@ -366,6 +522,14 @@ export async function importBundle(
   try {
     await c.query("BEGIN");
     await c.query("SELECT pg_advisory_xact_lock(2401902)");
+    await c.query(
+      "SELECT employee_id FROM employees WHERE employee_id=ANY($1::text[]) ORDER BY employee_id FOR UPDATE",
+      [b.employees?.employees.map((e) => e.employee_id) ?? []],
+    );
+    await c.query(
+      "SELECT event_id FROM events WHERE event_id=ANY($1::text[]) ORDER BY event_id FOR UPDATE",
+      [b.events?.events.map((e) => e.event_id) ?? []],
+    );
     await validateReferences(c, b);
     const hash = hashBundle(b);
     const duplicate = await c.query(
@@ -379,11 +543,21 @@ export async function importBundle(
       events: b.events?.events.length ?? 0,
       history: b.history?.length ?? 0,
     };
+    const changes = await previewChanges(c, b);
+    const warnings = (b.employees?.employees ?? []).filter(
+      (e) => !e.career_goal,
+    ).length
+      ? [
+          "Some employees have no explicit career goal; the next grade is inferred where possible.",
+        ]
+      : [];
     if (duplicate.rowCount) {
       await c.query("ROLLBACK");
       return {
         hash,
         counts,
+        changes,
+        warnings,
         duplicate: true,
         committed: false,
         batchId: duplicate.rows[0].id as string,
@@ -434,7 +608,14 @@ export async function importBundle(
       ]);
     if (!options.commit) {
       await c.query("ROLLBACK");
-      return { hash, counts, duplicate: false, committed: false };
+      return {
+        hash,
+        counts,
+        changes,
+        warnings,
+        duplicate: false,
+        committed: false,
+      };
     }
     const batchId = (
       await c.query(
@@ -539,7 +720,6 @@ export async function importBundle(
         "event_target_grades",
         "event_skill_effects",
         "event_prerequisites",
-        "event_sessions",
       ])
         await c.query(`DELETE FROM ${table} WHERE event_id=$1`, [e.event_id]);
       for (const r of e.target_roles)
@@ -567,9 +747,13 @@ export async function importBundle(
         ]);
       for (const d of e.upcoming_sessions)
         await c.query(
-          "INSERT INTO event_sessions(event_id,session_date) VALUES($1,$2)",
+          "INSERT INTO event_sessions(event_id,session_date) VALUES($1,$2) ON CONFLICT(event_id,session_date) DO NOTHING",
           [e.event_id, d],
         );
+      await c.query(
+        "DELETE FROM event_sessions WHERE event_id=$1 AND NOT(session_date=ANY($2::date[]))",
+        [e.event_id, e.upcoming_sessions],
+      );
     }
     for (const h of b.history ?? [])
       await c.query(
@@ -596,8 +780,24 @@ export async function importBundle(
         options.requestId ?? null,
       ],
     );
+    await c.query(
+      `INSERT INTO assessment_snapshots(employee_id,batch_id,assessed_on,skills)
+      SELECT e.employee_id,$1,e.last_review_date,
+        COALESCE(jsonb_object_agg(b.skill_id,b.assessed_level) FILTER(WHERE b.skill_id IS NOT NULL),'{}'::jsonb)
+      FROM employees e LEFT JOIN employee_skill_baselines b USING(employee_id)
+      WHERE e.dataset_batch_id=$1 GROUP BY e.employee_id ON CONFLICT DO NOTHING`,
+      [batchId],
+    );
     await c.query("COMMIT");
-    return { hash, counts, duplicate: false, committed: true, batchId };
+    return {
+      hash,
+      counts,
+      changes,
+      warnings,
+      duplicate: false,
+      committed: true,
+      batchId,
+    };
   } catch (e) {
     await c.query("ROLLBACK");
     throw e;

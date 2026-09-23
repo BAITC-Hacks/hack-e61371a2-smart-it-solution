@@ -17,7 +17,10 @@ try {
         commit: true,
       }),
     );
-    if (config.demo) { await seedDemoAccounts(pool); await seedGuideDemo(pool); }
+    if (config.demo) {
+      await seedDemoAccounts(pool);
+      await seedGuideDemo(pool);
+    }
   } else if (command === "account") {
     const a = z
       .object({

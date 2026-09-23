@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { notificationText } from "./notification-copy.js";
 import {
   loadCareer,
   loadEvents,
@@ -79,9 +80,15 @@ async function notify(
   key: string,
   link: string,
 ) {
+  const language = (
+    await db.query(
+      "SELECT preferred_language FROM employees WHERE employee_id=$1",
+      [employee],
+    )
+  ).rows[0]?.preferred_language;
   await db.query(
     "INSERT INTO notifications(employee_id,kind,title,body,link,dedupe_key) VALUES($1,$2,$3,$3,$4,$5) ON CONFLICT(dedupe_key) DO NOTHING",
-    [employee, kind, title, link, key],
+    [employee, kind, notificationText(title, language), link, key],
   );
 }
 async function preferences(db: Queryable, id: string): Promise<Preferences> {
