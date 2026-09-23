@@ -1,15 +1,30 @@
 {
-  "name": "career-quest-back", "version": "0.1.0", "private": true, "type": "module",
-  "engines": {"node": ">=24.19.0 <25"},
+  "name": "career-quest-back",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.19.0 <25"
+  },
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
-    "build": "tsc", "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "start": "node --env-file-if-exists=.env dist/src/index.js",
     "migrate": "tsx --env-file-if-exists=.env src/cli.ts migrate",
     "seed": "tsx --env-file-if-exists=.env src/cli.ts seed",
     "account": "tsx --env-file-if-exists=.env src/cli.ts account",
     "test": "tsx --test tests/*.test.ts"
   },
-  "dependencies": {"pg": "^8.16.3", "zod": "^4.1.0", "csv-parse": "^6.1.0"},
-  "devDependencies": {"typescript": "~5.9.3", "@types/node": "^24.0.0", "@types/pg": "^8.15.0", "tsx": "^4.20.0"}
+  "dependencies": {
+    "csv-parse": "^7.0.2",
+    "pg": "^8.16.3",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.15.0",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.3"
+  }
 }
