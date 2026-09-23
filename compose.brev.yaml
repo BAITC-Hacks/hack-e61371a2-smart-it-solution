@@ -12,6 +12,12 @@ services:
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, wget, -q, -T, '5', --spider, http://127.0.0.1:18000/health]
+      interval: 15s
+      timeout: 8s
+      retries: 3
+      start_period: 120s
     volumes:
       - ./.cache/brev/id_ed25519:/run/ssh/id_ed25519:ro
       - ./.cache/brev/known_hosts:/run/ssh/known_hosts:ro

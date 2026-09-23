@@ -18,6 +18,8 @@ flowchart LR
 
 Права, поиск по утверждённым статьям, контакты, расчёты навыков и проверка ответа остаются в Back. Модель выбирает разрешённые источники и факты; сервер собирает ответ. Чувствительные сценарии используют проверенные инструкции. Свободная генерация корпоративных регламентов не включена. Поиск пока SQL; OpenAI embeddings включаются отдельно.
 
+Живые проверки и замеры: [BREV_ACCEPTANCE.md](BREV_ACCEPTANCE.md).
+
 ## Повторный запуск
 
 Команды выполняются из корня репозитория. Нужны Docker Compose, Python 3, OpenSSH и авторизованный Brev CLI. На этом Mac CLI находится в `~/.local/bin/brev`.
@@ -36,7 +38,7 @@ ssh -T career-quest-ai 'docker logs --tail 40 career-quest-llm'
 # Получить актуальный адрес Brev и подготовить отдельный ключ туннеля:
 python3 infra/brev/connect.py
 
-docker compose --env-file .env.brev -f compose.yaml -f compose.brev.yaml up -d --build --wait
+docker compose --env-file .env.brev -f compose.yaml -f compose.brev.yaml up -d --build --wait --wait-timeout 600
 ```
 
 `serve.sh` не заменяет существующий контейнер и не вращает его ключ автоматически. Для обновления образа сначала проверить новую конфигурацию, затем явно остановить/удалить только `career-quest-llm` и повторить скрипт; сохранить `~/career-quest-ai/runtime.env` и кеш. Первый запуск скачивает около 8 ГБ весов плюс Docker-образ и может занимать несколько минут.
@@ -98,7 +100,7 @@ brev stop career-quest-ai
 
 Текущий стек приложения работает в Docker на Mac, модель — в Brev. Окно терминала для туннеля держать открытым не нужно. Чтобы приложение работало при выключенном Mac, тот же Compose-стек, его SSH-секреты и базу нужно перенести на выбранный сервер, настроить домен, HTTPS и резервное копирование. Публичный production-сайт эта инструкция автоматически не создаёт.
 
-Тиммейт получает код через PR и может запускать обычный `docker compose up -d --build` с fallback. Для собственной GPU-интеграции ему нужен доступ к Brev и отдельный ключ; секреты через Git не передавать. Контракт помощника описан в `contracts/GUIDE_AI.md`; интерфейс чата остаётся задачей Front.
+Тиммейт получает код через PR и может запускать обычный `docker compose up -d --build` с fallback. Для собственной GPU-интеграции ему нужен доступ к Brev и отдельный ключ; секреты через Git не передавать. Контракт помощника описан в `contracts/GUIDE_AI.md`. Экран чата из Front доступен после входа по `/assistant`; изменения интерфейса ведёт тиммейт.
 
 ## Диагностика
 
@@ -110,6 +112,6 @@ brev stop career-quest-ai
 | SSH отказывает после stop/start | `brev refresh`, затем `connect.py`, пересоздать `ai-tunnel` |
 | `INVALID_AI_RESPONSE` / `INVALID_AI_SELECTION` | Backend отклонил ответ; проверить модель на одинаковых обезличенных примерах |
 | OOM | Проверить VRAM/RAM, сохранить ограничение контекста и параллелизма; не запускать вторую модель на том же GPU |
-| UI пока без чата | Использовать API-контракт помощника; интеграцию экрана ведёт Front |
+| UI без обновлённого чата | Получить актуальный `main` и пересобрать сервис `front`; экран находится по `/assistant` |
 
 Источники: [модель Qwen](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507), [vLLM 0.30.0](https://github.com/vllm-project/vllm/releases/tag/v0.30.0), [Docker deployment](https://docs.vllm.ai/en/v0.30.0/deployment/docker/), [structured outputs](https://docs.vllm.ai/en/v0.30.0/features/structured_outputs/), [безопасность vLLM](https://docs.vllm.ai/en/v0.30.0/usage/security/), [стоимость состояний Brev](https://docs.nvidia.com/brev/concepts/gpu-instances).

@@ -35,9 +35,9 @@ headers['X-CSRF-Token'] = login.data.csrfToken;
 const threads = [];
 try {
   const cases = [
-    { locale: 'ru', content: 'Сломался ноутбук. К кому обратиться?', expected: 'citations' },
-    { locale: 'kk', content: 'Ноутбук істемейді. Кімге хабарласу керек?', expected: 'citations' },
-    { locale: 'ru', content: 'Какие навыки мне нужно развивать для моей карьерной цели?', expected: 'facts' },
+    { locale: 'ru', content: 'Что указано в демонстрационной инструкции про ноутбук?', expected: 'citations' },
+    { locale: 'kk', content: 'Ноутбук туралы демонстрациялық нұсқаулықта не жазылған?', expected: 'citations' },
+    { locale: 'ru', content: 'Какая у меня текущая роль и грейд?', expected: 'facts' },
   ];
   const prepared = [];
   for (const item of cases) {
