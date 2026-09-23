@@ -1,0 +1,1099 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Career Quest foundation API",
+    "version": "0.1.0",
+    "description": "Stages 1–2. Same-origin cookie sessions. Every POST requires Origin=APP_ORIGIN; authenticated POST additionally requires X-CSRF-Token. Complete import rules are in API.md."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "security": [
+    {
+      "sessionCookie": []
+    }
+  ],
+  "paths": {
+    "/health/live": {
+      "get": {
+        "summary": "Process liveness",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ok"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed; stable code and requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "parameters": []
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "summary": "Database readiness",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ready"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed; stable code and requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "parameters": []
+      }
+    },
+    "/auth/demo-accounts": {
+      "get": {
+        "summary": "Demo account discovery",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "accounts": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/User"
+                          }
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "accounts"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed; stable code and requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "parameters": []
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Login; sets HttpOnly cq_session cookie",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Session"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed; stable code and requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "login": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "demo": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "login"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Browser-managed origin, must match APP_ORIGIN"
+          }
+        ]
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "summary": "Current session",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Session"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed; stable code and requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": []
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "Revoke current session",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "loggedOut": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "loggedOut"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed; stable code and requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Browser-managed origin, must match APP_ORIGIN"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/workspace": {
+      "get": {
+        "summary": "Counts within role scope",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "counts": {
+                          "type": "object",
+                          "properties": {
+                            "employees": {
+                              "type": "integer"
+                            },
+                            "skills": {
+                              "type": "integer"
+                            },
+                            "events": {
+                              "type": "integer"
+                            },
+                            "participations": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "employees",
+                            "skills",
+                            "events",
+                            "participations"
+                          ]
+                        },
+                        "dataset": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "version": {
+                                  "type": "string"
+                                },
+                                "asOfDate": {
+                                  "type": "string",
+                                  "format": "date"
+                                },
+                                "importedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "version",
+                                "asOfDate",
+                                "importedAt"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "scope": {
+                          "type": "string",
+                          "enum": [
+                            "self",
+                            "team",
+                            "organization"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "counts",
+                        "dataset",
+                        "scope"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed; stable code and requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": []
+      }
+    },
+    "/employees": {
+      "get": {
+        "summary": "Search profiles within role scope",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Employee"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "total",
+                        "page",
+                        "limit"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed; stable code and requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12
+            }
+          }
+        ]
+      }
+    },
+    "/employees/{id}": {
+      "get": {
+        "summary": "Read profile or 404 when not visible",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Profile"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed; stable code and requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/imports/preview": {
+      "post": {
+        "summary": "Admin: preview validated atomic dataset",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportResult"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed; stable code and requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Browser-managed origin, must match APP_ORIGIN"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/imports/commit": {
+      "post": {
+        "summary": "Admin: commit validated atomic dataset",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportResult"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed; stable code and requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Browser-managed origin, must match APP_ORIGIN"
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/imports": {
+      "get": {
+        "summary": "Admin: last 30 imports",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "version": {
+                            "type": "string"
+                          },
+                          "asOfDate": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "counts": {
+                            "$ref": "#/components/schemas/ImportCounts"
+                          },
+                          "importedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "version",
+                          "asOfDate",
+                          "counts",
+                          "importedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed; stable code and requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": []
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "cq_session"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "login": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "employee",
+              "manager",
+              "hr",
+              "admin"
+            ]
+          },
+          "employeeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "demo": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "login",
+          "displayName",
+          "role",
+          "employeeId",
+          "demo"
+        ]
+      },
+      "Session": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "csrfToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "user",
+          "csrfToken"
+        ]
+      },
+      "Employee": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "grade": {
+            "type": "string",
+            "enum": [
+              "Junior",
+              "Middle",
+              "Senior",
+              "Lead"
+            ]
+          },
+          "department": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "en"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role",
+          "grade",
+          "department",
+          "language"
+        ]
+      },
+      "Profile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "grade": {
+            "type": "string",
+            "enum": [
+              "Junior",
+              "Middle",
+              "Senior",
+              "Lead"
+            ]
+          },
+          "department": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "en"
+            ]
+          },
+          "managerId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hireDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "tenureMonths": {
+            "type": "integer"
+          },
+          "workFormat": {
+            "type": "string",
+            "enum": [
+              "office",
+              "hybrid",
+              "remote"
+            ]
+          },
+          "lastReviewDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "targetRole": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "targetGrade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role",
+          "grade",
+          "department",
+          "language",
+          "managerId",
+          "hireDate",
+          "tenureMonths",
+          "workFormat",
+          "lastReviewDate",
+          "targetRole",
+          "targetGrade"
+        ]
+      },
+      "ImportCounts": {
+        "type": "object",
+        "properties": {
+          "skills": {
+            "type": "integer"
+          },
+          "roleProfiles": {
+            "type": "integer"
+          },
+          "employees": {
+            "type": "integer"
+          },
+          "events": {
+            "type": "integer"
+          },
+          "history": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "skills",
+          "roleProfiles",
+          "employees",
+          "events",
+          "history"
+        ]
+      },
+      "ImportResult": {
+        "type": "object",
+        "properties": {
+          "hash": {
+            "type": "string"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/ImportCounts"
+          },
+          "duplicate": {
+            "type": "boolean"
+          },
+          "committed": {
+            "type": "boolean"
+          },
+          "batchId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "hash",
+          "counts",
+          "duplicate",
+          "committed"
+        ]
+      },
+      "ImportRequest": {
+        "type": "object",
+        "minProperties": 1,
+        "additionalProperties": false,
+        "properties": {
+          "skills": {
+            "type": "object",
+            "description": "Complete skills.json document; see API.md and Back/data for the source schema"
+          },
+          "employees": {
+            "type": "object",
+            "description": "Complete employees.json document; see API.md and Back/data for the source schema"
+          },
+          "events": {
+            "type": "object",
+            "description": "Complete events.json document; see API.md and Back/data for the source schema"
+          },
+          "historyCsv": {
+            "type": "string",
+            "description": "Original activity_history.csv text"
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "Normalized history record; see API.md"
+            }
+          }
+        },
+        "not": {
+          "required": [
+            "history",
+            "historyCsv"
+          ]
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "requestId"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      }
+    }
+  }
+}

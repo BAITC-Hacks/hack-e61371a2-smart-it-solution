@@ -125,6 +125,10 @@ export function parseBundle(input: unknown): Bundle {
       { file: "dataset", field: "", message: "Expected an object" },
     ]);
   const raw = { ...input } as Record<string, unknown>;
+  if ("historyCsv" in raw && "history" in raw)
+    throw new ImportError([
+      { file: "history", field: "", message: "Provide history or historyCsv, not both" },
+    ]);
   if ("historyCsv" in raw) {
     try {
       if (typeof raw.historyCsv !== "string")
