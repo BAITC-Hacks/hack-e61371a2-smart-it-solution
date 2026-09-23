@@ -2,7 +2,7 @@
 
 ## Verified baseline
 
-The integration branch combines frontend main `4a74f4d` with the teammate NVIDIA assistant commit `2f985c4`, including migrations through `008_semantic.sql`. Integration fixes cover Front, safe backend capability metadata, the reverse proxy and the Brev launch wrapper. Original teammate commits are retained.
+The integration branch combines frontend main `4a74f4d` with the teammate NVIDIA assistant commit `2f985c4`, including migrations through `008_semantic.sql`. Integration fixes cover Front, safe backend capability metadata, the reverse proxy and the Brev launch wrapper. Original teammate commits are retained. The branch also includes main `da91a0e` and the teammate live-validation fix `5f14d1a`; backend checks and the real guide/assistant scenario were repeated after this merge.
 
 All product screens use `/api/v1` with cookie sessions and CSRF. Backend authorization is authoritative. No product screen uses test fixtures. Read requests are cancelled when their scope changes; mutation controls block concurrent submissions. Operations with an idempotency contract retain their key and payload for uncertain retries.
 
@@ -35,4 +35,4 @@ Secrets are never entered into frontend configuration or committed. CI execution
 
 A new local database `integration_acceptance_20260923` was created exclusively for the combined-stack tests and seeded from `Back/data`. No production or shared database was used. Generation and embeddings were explicitly disabled, no integration worker ran, and no external service credentials were needed. Test suites used real HTTP, sessions, CSRF, authorization and PostgreSQL transactions.
 
-39 passing browser scenarios comprise 21 explicit contract fixtures, 16 real API scenarios and 2 production PWA checks. Backend AI/semantic/status checks (33) and the Brev launcher tests (10) also passed, as did both production builds. The detailed browser tests are reproducible using `tests/README.md`; see the root [integration report](../INTEGRATION_VERIFICATION.md) for the complete verification scope. Docker was unavailable on the integration workstation. Paid inference quality, the live GPU/tunnel, external delivery and live corporate SSO were not verified.
+39 passing browser scenarios comprise 21 explicit contract fixtures, 16 real API scenarios and 2 production PWA checks. Backend AI/semantic/status checks (35) and the Brev launcher tests (10) also passed, as did both production builds. The detailed browser tests are reproducible using `tests/README.md`; see the root [integration report](../INTEGRATION_VERIFICATION.md) for the complete verification scope. Docker was unavailable on the integration workstation. Paid inference quality, the live GPU/tunnel, external delivery and live corporate SSO were not verified.

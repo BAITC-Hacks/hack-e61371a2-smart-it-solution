@@ -1,6 +1,6 @@
 # Совместный запуск Front и Back
 
-Интеграция от 23.09.2026 объединяет готовый frontend из `main` (`4a74f4d`) и серверную ветку помощника `codex/nvidia-assistant` (`2f985c4`). История обоих участников сохранена обычным merge.
+Интеграция от 23.09.2026 объединяет готовый frontend из `main` (`4a74f4d`) и серверную ветку помощника `codex/nvidia-assistant` (`2f985c4`). Также включён актуальный main `da91a0e` с исправлениями помощника `5f14d1a` из PR #15. История обоих участников сохранена обычным merge. После обновления повторно прошли 35 проверок backend, его сборка и реальный браузерный сценарий путеводителя/чата.
 
 ## Что соединено
 
@@ -47,7 +47,7 @@ npm run dev
 
 Vite по умолчанию направляет `/api` на `http://127.0.0.1:3001`. Для другого порта задайте `CQ_API_PROXY_TARGET` в окружении процесса Vite. `APP_ORIGIN` backend должен совпадать с адресом frontend. В браузере адрес API остаётся относительным.
 
-Контейнерный вариант из корня: `docker compose up -d --build --wait`, интерфейс **http://localhost:8080**. Для Brev используйте `python3 infra/brev/compose.py up -d --build --wait`; на Windows команда Python может называться `python`.
+Контейнерный вариант из корня: `docker compose up -d --build --wait`, интерфейс **http://localhost:8080**. Для Brev используйте `python3 infra/brev/compose.py up -d --build --wait --wait-timeout 600`; на Windows команда Python может называться `python`.
 
 ## Проверено 23.09.2026
 
@@ -55,7 +55,7 @@ Vite по умолчанию направляет `/api` на `http://127.0.0.1:
 
 | Проверка | Результат |
 | --- | --- |
-| Backend AI, semantic и capability metadata, реальная PostgreSQL, внешние провайдеры замоканы | 33 прошли |
+| Backend AI, semantic и capability metadata, реальная PostgreSQL, внешние провайдеры замоканы | 35 прошли |
 | Браузерные проверки UI с явными моками API | 21 прошла |
 | Браузер → Vite proxy → реальный backend → PostgreSQL | 16 прошли |
 | Production PWA и перевод при строгой CSP | 2 прошли |
