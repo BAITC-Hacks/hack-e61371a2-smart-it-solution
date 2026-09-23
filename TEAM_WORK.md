@@ -13,13 +13,15 @@
 
 Репозиторий приватный: аккаунт тиммейта должен иметь доступ на чтение и запись. Для приглашения нужен его GitHub login; если доступ уже выдан организаторами, приглашение не требуется. Каждый использует свой GitHub-аккаунт и свой commit author. Ключи и токены друг другу не пересылаем.
 
-Backend и стартовый Front находятся в [PR #3](https://github.com/BAITC-Hacks/hack-e61371a2-smart-it-solution/pull/3), ветка `codex/foundation-auth-data`.
+Проверено: у `jokermokerpokershoker` есть `push`, но нет `admin`/`maintain`. При необходимости приглашение нового участника выдаёт владелец репозитория/организатор; из текущего аккаунта это сделать нельзя.
+
+Backend, стартовый Front и Docker уже объединены в `main` через PR #3–5. Новую frontend-ветку создавать от актуального `origin/main`.
 
 ```bash
 git clone https://github.com/BAITC-Hacks/hack-e61371a2-smart-it-solution.git
 cd hack-e61371a2-smart-it-solution
 git fetch origin
-git switch -c codex/front-stage-1-2 origin/codex/foundation-auth-data
+git switch -c codex/front-stage-1-2 origin/main
 cd Front
 npm ci
 npm run dev
@@ -29,7 +31,7 @@ Node.js: `24.19.0` (`.nvmrc`). Стартовый Front уже имеет зав
 
 ### Backend для frontend-разработки
 
-Из корня репозитория после появления Compose в PR #3:
+Из корня репозитория:
 
 ```bash
 APP_ORIGIN=http://localhost:5173 docker compose up -d --build --wait db back
@@ -39,13 +41,13 @@ APP_ORIGIN=http://localhost:5173 docker compose up -d --build --wait db back
 
 ### Ветки и PR
 
-1. Тиммейт работает только в `codex/front-stage-1-2`. Backend продолжает `codex/foundation-auth-data`. В общую ветку одновременно не коммитим.
+1. Тиммейт работает в `codex/front-stage-1-2`. Backend использует отдельные `codex/back-*` ветки. Каждая новая задача начинается от актуального `origin/main`.
 2. Первый готовый frontend-коммит сразу отправляется: `git push -u origin codex/front-stage-1-2`.
-3. Пока PR #3 не объединён, создать frontend PR с **base `codex/foundation-auth-data`**, head `codex/front-stage-1-2`. Так в diff видны только frontend-изменения. Пометить зависимость от PR #3 и не объединять раньше него.
-4. По мере работы публиковать готовые коммиты в тот же PR. Черновик использовать, пока проверки и интеграция не закончены.
-5. Подтягивать backend без переписывания опубликованной истории: `git fetch origin`, затем `git merge origin/codex/foundation-auth-data` в своей ветке. Конфликты обсуждать, не удалять чужие изменения.
-6. После объединения PR #3 переключить base frontend PR на `main` в GitHub. Если #3 объединён squash-методом, сначала влить `origin/main` в frontend-ветку и проверить diff.
-7. Новые независимые задачи после общей основы начинать от `origin/main`. Не использовать force-push в общих ветках и не коммитить прямо в `main`.
+3. Создать frontend PR с **base `main`**, head `codex/front-stage-1-2`. Область изменений — только `Front/**`.
+4. По мере работы публиковать готовые коммиты в тот же открытый PR. Черновик использовать, пока проверки и интеграция не закончены.
+5. Подтягивать общую основу без переписывания истории: `git fetch origin`, затем `git merge origin/main` в своей ветке. Конфликты обсуждать, не удалять чужие изменения.
+6. Если PR уже объединён, для следующей готовой части создать новую ветку и новый PR. Новые коммиты в старой ветке сами по себе не попадают в объединённый PR.
+7. Не использовать force-push в общих ветках и не коммитить прямо в `main`.
 
 ## Задание для Codex тиммейта
 
@@ -56,7 +58,7 @@ APP_ORIGIN=http://localhost:5173 docker compose up -d --build --wait db back
 Моя зона ответственности — только Front/**, этапы 1–2.
 Прочитай TEAM_WORK.md, TECH_SPEC.md и Back/contracts/API.md.
 Работай в отдельной ветке codex/front-stage-1-2 от актуальной
-origin/codex/foundation-auth-data. Не меняй Back, общий CI и Compose.
+origin/main. Не меняй Back, infra, общий CI и Compose.
 
 Стек: React 19.2, TypeScript 5.9, Vite 7, Tailwind 4,
 Radix UI в стиле shadcn, class-variance-authority, tailwind-merge, wouter.
@@ -76,8 +78,8 @@ Radix UI в стиле shadcn, class-variance-authority, tailwind-merge, wouter.
 Не показывай рекомендации, чат и другие будущие функции как работающие.
 Если нужен новый endpoint или поле — опиши запрос в PR; backend делает другая сторона.
 Каждую готовую часть сразу коммить и отправляй в свой PR.
-Пока PR #3 не merged, base PR = codex/foundation-auth-data;
-после его merge сменить base на main по TEAM_WORK.md.
+Все новые PR направляй в main. Если предыдущий PR уже merged,
+создай новую ветку от актуального main и новый PR.
 ```
 
 ## Общая готовность этапов
