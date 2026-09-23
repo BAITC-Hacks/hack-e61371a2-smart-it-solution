@@ -1,0 +1,49 @@
+# Local synthetic demo only. Override credentials/origin for an external environment.
+name: career-quest
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: career_quest
+      POSTGRES_USER: career_quest
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-career_quest_local_only}
+    ports: ["127.0.0.1:5433:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U career_quest -d career_quest"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  back:
+    build: ./Back
+    environment:
+      DATABASE_URL: postgresql://career_quest:${POSTGRES_PASSWORD:-career_quest_local_only}@db:5432/career_quest
+      API_PORT: 3001
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:8080}
+      DEMO_MODE: ${DEMO_MODE:-true}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      DATASET_PATH: ./data
+      AI_PROVIDER: disabled
+    command: ["sh", "-c", "node dist/src/cli.js migrate && node dist/src/cli.js seed && node dist/src/index.js"]
+    ports: ["127.0.0.1:3001:3001"]
+    depends_on:
+      db: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  front:
+    build:
+      context: .
+      dockerfile: infra/frontend.Dockerfile
+    ports: ["127.0.0.1:8080:8080"]
+    depends_on:
+      back: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  pgdata:
