@@ -18,6 +18,7 @@ import {
   answerAssistant,
   handleAssistant,
   cleanupAssistantRetention,
+  revalidateSavedAnswer,
 } from "../src/ai.js";
 import { type RouteContext, HttpError } from "../src/http.js";
 
@@ -655,7 +656,7 @@ test(
           );
           assert.equal(answer.citations[0]!.synthetic, true);
           assert.match(answer.content, /Демонстрационный материал/);
-          assert.deepEqual(answer.contacts, []);
+          assert.ok(answer.contacts.every((contact) => contact.synthetic));
           assert.deepEqual(answer.facts, []);
         },
       );
@@ -695,7 +696,7 @@ test(
             [selectedId],
           );
           assert.equal(answer.citations[0]!.synthetic, true);
-          assert.deepEqual(answer.contacts, []);
+          assert.ok(answer.contacts.every((contact) => contact.synthetic));
         },
       );
       await t.test(
@@ -752,7 +753,7 @@ test(
           assert.equal(answer.source, "fallback");
           assert.equal(answer.citations.length, 1);
           assert.equal(answer.citations[0]!.synthetic, true);
-          assert.equal(answer.contacts.length, 0);
+          assert.ok(answer.contacts.every((contact) => contact.synthetic));
           const fabricated = await answerAssistant({
             pool: pool!,
             user: employee,
@@ -798,6 +799,21 @@ test(
           assert.ok(
             career.facts.every((f) => f.href.includes(employee.employeeId!)),
           );
+        },
+      );
+      await t.test(
+        "saved learning context keeps only the owning employee and safe internal links",
+        async () => {
+          const saved: Parameters<typeof revalidateSavedAnswer>[2] = {
+            content: "Suggested course", source: "ai", locale: "ru", scope: "own",
+            citations: [], contacts: [],
+            facts: [{ id: "event:EV_012", text: "Advanced Python", href: "/events/EV_012", employeeId: employee.employeeId! }],
+          };
+          assert.equal((await revalidateSavedAnswer(pool!, employee, saved)).content, saved.content);
+          const other = { ...saved, facts: saved.facts.map((f) => ({ ...f, employeeId: "E9999" })) };
+          assert.equal((await revalidateSavedAnswer(pool!, employee, other)).fallbackReason, "SOURCE_ACCESS_CHANGED");
+          const external = { ...saved, facts: saved.facts.map((f) => ({ ...f, href: "https://example.invalid/" })) };
+          assert.equal((await revalidateSavedAnswer(pool!, employee, external)).fallbackReason, "SOURCE_ACCESS_CHANGED");
         },
       );
       await t.test(
