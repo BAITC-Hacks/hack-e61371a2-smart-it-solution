@@ -92,4 +92,4 @@ temporary.write_text(marker + "\n" + "\n".join(f"{k}={v}" for k, v in settings.i
 temporary.chmod(0o600)
 temporary.replace(env_path)
 print("Prepared .env.brev and restricted .cache/brev SSH credentials (ignored by Git).")
-print("Start: docker compose --env-file .env.brev -f compose.yaml -f compose.brev.yaml up -d --build")
+print("Start: python3 infra/brev/compose.py up -d --build --wait")

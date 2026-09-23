@@ -31,14 +31,14 @@ export function useMutation(session: Session) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Error>();
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  async function run<T = unknown>(method: string, path: string, body: unknown = {}): Promise<ApiResponse<T> | undefined> {
+  async function run<T = unknown>(method: string, path: string, body: unknown = {}, options: { timeoutMs?: number } = {}): Promise<ApiResponse<T> | undefined> {
     if (busyRef.current) return;
     busyRef.current = true; setBusy(true); setError(undefined);
     const signature = JSON.stringify([session.user.id, method, path, body]);
     const key = pending.current?.signature === signature ? pending.current.key : crypto.randomUUID();
     pending.current = { signature, key };
     try {
-      const response = await api<T>(path, { method, body, csrf: session.csrfToken, idempotencyKey: key });
+      const response = await api<T>(path, { method, body, csrf: session.csrfToken, idempotencyKey: key, timeoutMs: options.timeoutMs });
       pending.current = null;
       return response;
     } catch (caught) { if (mounted.current) setError(caught instanceof Error ? caught : new Error(String(caught))); }

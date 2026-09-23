@@ -10,6 +10,7 @@ import {
   requireRole,
 } from "./http.js";
 import { readAiConfig, type AiConfig } from "./ai-config.js";
+import { readSemanticConfig, type SemanticConfig } from "./semantic-config.js";
 import { parseStructuredResponse, structuredRequest } from "./ai-provider.js";
 import {
   searchGuide,
@@ -820,6 +821,7 @@ export async function revalidateSavedAnswer(
 export async function handleAssistant(
   ctx: RouteContext,
   config: AiConfig = readAiConfig(),
+  embeddings: SemanticConfig = readSemanticConfig(),
 ): Promise<boolean> {
   const path = ctx.path.replace(/^\/api\/v1(?=\/)/, "");
   if (!path.startsWith("/assistant") && path !== "/admin/ai/usage")
@@ -828,7 +830,7 @@ export async function handleAssistant(
   if (path === "/admin/ai/usage" && method === "GET") {
     requireRole(user, "admin");
     const totals = (
-      await pool.query(`SELECT count(*)::int AS requests,COALESCE(sum(CASE WHEN status='reserved' THEN reserved_microusd ELSE cost_microusd END),0)::text AS charged_microusd,
+      await pool.query(`SELECT count(*)::int AS requests,COALESCE(sum(CASE WHEN status='reserved' THEN reserved_microusd ELSE cost_microusd END) FILTER(WHERE provider='openai'),0)::text AS charged_microusd,
    count(*) FILTER(WHERE status='reserved')::int AS unresolved FROM ai_usage`)
     ).rows[0];
     const spent = Number(totals.charged_microusd);
@@ -848,6 +850,9 @@ export async function handleAssistant(
         (p) => spent >= (config.projectBudget * p) / 100,
       ),
       providerConfigured: config.enabled,
+      embeddingsEnabled: embeddings.enabled,
+      embeddingsConfigured: Boolean(embeddings.budget.apiKey && embeddings.model && embeddings.price > 0),
+      embeddingModel: embeddings.model || null,
     });
     return true;
   }

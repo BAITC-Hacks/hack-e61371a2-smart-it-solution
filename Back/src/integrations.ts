@@ -12,6 +12,7 @@ import {
 } from "./http.js";
 import { importBundle, parseBundle } from "./imports.js";
 import { notificationText } from "./notification-copy.js";
+import { readAiConfig } from "./ai-config.js";
 
 const targetSchema = z.object({
   url: z.url().refine((v) => {
@@ -516,6 +517,7 @@ export async function handleIntegrations(ctx: RouteContext): Promise<boolean> {
     return false;
   requireRole(user, "admin");
   if (path === "/api/v1/integrations" && method === "GET") {
+    const ai = readAiConfig();
     ctx.send({
       configuredTargets: Object.keys(integrationTargets()),
       ssoConfigured: Boolean(
@@ -523,7 +525,9 @@ export async function handleIntegrations(ctx: RouteContext): Promise<boolean> {
       ),
       webhooksEnabled: process.env.WORKER_DELIVERY_ENABLED === "true",
       messengerTargetKey: process.env.MESSENGER_TARGET_KEY ?? null,
-      nvidia: "deferred",
+      aiProvider: ai.provider,
+      aiEnabled: ai.enabled,
+      nvidia: ai.provider === "self_hosted" && ai.enabled ? "configured" : "disabled",
     });
     return true;
   }

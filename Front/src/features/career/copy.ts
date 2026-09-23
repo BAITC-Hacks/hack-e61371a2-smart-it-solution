@@ -1,6 +1,8 @@
 import { useI18n } from '../../i18n';
 
 const text = {
+  aiBusy: ['Сервис ИИ сейчас занят другими запросами. Показан подбор по данным профиля.', 'ЖИ қызметі қазір басқа сұрауларды өңдеп жатыр. Профиль деректері бойынша ұсыныстар көрсетілді.', 'The AI service is busy with other requests. Recommendations are based on profile data.'],
+  aiTimeout: ['ИИ не успел ответить. Показан подбор по данным профиля; повторный запрос не запускается автоматически.', 'ЖИ уақытында жауап бермеді. Профиль деректері бойынша ұсыныстар көрсетілді; сұрау автоматты түрде қайталанбайды.', 'AI did not respond in time. Recommendations are based on profile data; the request is not retried automatically.'],
   aiOption: ['Объяснение с ИИ (если включено организацией)', 'ЖИ көмегімен түсіндіру (ұйым қосқан болса)', 'AI explanation (if enabled by your organisation)'],
   calculateAi: ['Подобрать с ИИ', 'ЖИ көмегімен таңдау', 'Find learning with AI'],
   aiHelp: ['ИИ уточняет порядок подходящих мероприятий; объяснения основаны на проверенных фактах. Запрос запускается по кнопке и расходует лимиты запросов и бюджета организации. Если ИИ выключен, недоступен или лимит исчерпан, вы получите подбор по данным профиля.', 'ЖИ сәйкес іс-шаралардың ретін нақтылайды; түсіндірмелер тексерілген деректерге негізделеді. Сұрау батырманы басқанда ғана жіберіліп, ұйымның сұрау және бюджет лимиттерін пайдаланады. ЖИ өшірулі, қолжетімсіз немесе лимит таусылған болса, ұсыныстар профиль деректері бойынша беріледі.', 'AI refines the order of suitable activities; explanations use verified facts. The button sends a request using your organisation’s request and budget limits. If AI is disabled, unavailable or a limit is reached, you receive recommendations based on profile data.'],

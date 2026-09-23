@@ -11765,6 +11765,37 @@
         "x-access-scope": "same account/current access context",
         "x-idempotency-required": true,
         "responses": {
+          "200": {
+            "description": "Cached reply for the same request key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AssistantAnswer"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": true
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Correlation ID for troubleshooting."
+              }
+            }
+          },
           "201": {
             "description": "Created",
             "content": {
@@ -11802,37 +11833,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "headers": {
-              "X-Request-Id": {
-                "schema": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "description": "Correlation ID for troubleshooting."
-              }
-            }
-          },
-          "200": {
-            "description": "Cached reply for the same request key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/AssistantAnswer"
-                    },
-                    "meta": {
-                      "$ref": "#/components/schemas/ResponseMeta"
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": true
                 }
               }
             },
@@ -11967,6 +11967,21 @@
                         },
                         "providerConfigured": {
                           "type": "boolean"
+                        },
+                        "embeddingsEnabled": {
+                          "type": "boolean",
+                          "description": "Embeddings are explicitly enabled and have an OpenAI key, model and positive price. Independent from generation enabled/provider; does not assert index activation or live provider health."
+                        },
+                        "embeddingsConfigured": {
+                          "type": "boolean",
+                          "description": "Embedding credentials, model and positive price are configured, independent of the enable flag. Secrets are not exposed."
+                        },
+                        "embeddingModel": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Configured OpenAI embedding model, separate from the generation model."
                         }
                       },
                       "additionalProperties": true
@@ -13596,14 +13611,14 @@
                   "cost": {
                     "type": "number",
                     "minimum": 0,
-                    "maximum": 1000000000000.0
+                    "maximum": 1000000000000
                   },
                   "measuredBenefit": {
                     "anyOf": [
                       {
                         "type": "number",
                         "minimum": 0,
-                        "maximum": 1000000000000.0
+                        "maximum": 1000000000000
                       },
                       {
                         "type": "null"
@@ -15706,7 +15721,25 @@
                           ]
                         },
                         "nvidia": {
-                          "const": "deferred"
+                          "type": "string",
+                          "enum": [
+                            "configured",
+                            "disabled"
+                          ],
+                          "deprecated": true,
+                          "description": "Legacy self-hosted configuration indicator. Prefer aiProvider and aiEnabled."
+                        },
+                        "aiProvider": {
+                          "type": "string",
+                          "enum": [
+                            "openai",
+                            "self_hosted"
+                          ],
+                          "description": "Configured generation provider. This is configuration, not a connectivity check."
+                        },
+                        "aiEnabled": {
+                          "type": "boolean",
+                          "description": "Generation enabled by server configuration; does not assert live provider health."
                         }
                       },
                       "additionalProperties": true
@@ -16952,25 +16985,6 @@
         "x-access-scope": "public",
         "x-idempotency-required": false,
         "responses": {
-          "default": {
-            "description": "Error. Stable application error.code; unauthorized object access often returns 404. See Error schema.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "headers": {
-              "X-Request-Id": {
-                "schema": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "description": "Correlation ID for troubleshooting."
-              }
-            }
-          },
           "303": {
             "description": "Session established; redirect to application",
             "headers": {
@@ -16986,6 +17000,25 @@
                 },
                 "description": "cq_session cookie and clearing cq_oidc cookie"
               },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Correlation ID for troubleshooting."
+              }
+            }
+          },
+          "default": {
+            "description": "Error. Stable application error.code; unauthorized object access often returns 404. See Error schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
               "X-Request-Id": {
                 "schema": {
                   "type": "string",
