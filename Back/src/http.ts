@@ -32,10 +32,13 @@ export async function snapshotDate(db:Queryable):Promise<string>{
 export async function audit(db:Queryable,user:User,action:string,entity:string,id:string,details:unknown,requestId:string){
  await db.query('INSERT INTO audit_log(actor,action,entity,entity_id,details,request_id) VALUES($1,$2,$3,$4,$5,$6)',[user.id,action,entity,id,details,requestId]);
 }
+export function idempotencyPayloadHash(user:User,payload:unknown){
+ return createHash('sha256').update(JSON.stringify({role:user.role,employeeId:user.employeeId,payload})).digest('hex');
+}
 export async function idempotent<T>(ctx:RouteContext,operation:string,payload:unknown,fn:(client:PoolClient)=>Promise<T>):Promise<T>{
  const key=ctx.req.headers['idempotency-key'];
  if(typeof key!=='string'||key.length<8||key.length>160)throw new HttpError(400,'IDEMPOTENCY_REQUIRED','Нужен Idempotency-Key длиной 8–160 символов');
- const hash=createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+ const hash=idempotencyPayloadHash(ctx.user,payload);
  return transaction(ctx.pool,async c=>{
   await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[`${ctx.user.id}:${operation}:${key}`]);
   const previous=(await c.query('SELECT payload_hash,response FROM idempotency_records WHERE user_id=$1 AND operation=$2 AND key=$3',[ctx.user.id,operation,key])).rows[0];

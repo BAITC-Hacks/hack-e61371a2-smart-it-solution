@@ -3,6 +3,7 @@ import { createPool, migrate } from "./db.js";
 import { importBundle, readBundle, ImportError } from "./imports.js";
 import { seedDemoAccounts, hashPassword, appRoles } from "./auth.js";
 import { z } from "zod";
+import { seedGuideDemo } from "./guide.js";
 const config = readConfig();
 const pool = createPool(config.databaseUrl);
 try {
@@ -16,7 +17,7 @@ try {
         commit: true,
       }),
     );
-    if (config.demo) await seedDemoAccounts(pool);
+    if (config.demo) { await seedDemoAccounts(pool); await seedGuideDemo(pool); }
   } else if (command === "account") {
     const a = z
       .object({
