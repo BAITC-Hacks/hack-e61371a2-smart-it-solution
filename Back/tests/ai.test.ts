@@ -8,6 +8,7 @@ import { seedDemoAccounts, type User } from "../src/auth.js";
 import { readBundle, importBundle } from "../src/imports.js";
 import { seedGuideDemo } from "../src/guide.js";
 import { readAiConfig } from "../src/ai-config.js";
+import { readSemanticConfig } from "../src/semantic.js";
 import {
   requestStructured,
   reserveAiBudget,
@@ -34,6 +35,97 @@ test("AI defaults disabled and requires explicit model pricing to enable", () =>
   assert.equal(
     redactQuestion("sk-example123456789 test@example.invalid 123456789012"),
     "[secret removed] [email removed] [identifier removed]",
+  );
+});
+
+const selfHostedEnv = {
+  AI_ENABLED: "true",
+  AI_PROVIDER: "self_hosted",
+  AI_BASE_URL: "http://127.0.0.1:18000/v1/",
+  AI_API_KEY: "test-private-gpu-key",
+  AI_MODEL_FAST: "test-gpu-model",
+  AI_USER_REQUESTS_PER_HOUR: "100",
+  AI_PROJECT_REQUESTS_PER_DAY: "1000",
+};
+
+test("self-hosted configuration isolates credentials/prices and validates endpoint transport", () => {
+  const config = readAiConfig({
+    ...selfHostedEnv,
+    OPENAI_API_KEY: "must-not-be-used",
+    AI_INPUT_USD_PER_MILLION: "100",
+    AI_OUTPUT_USD_PER_MILLION: "100",
+    AI_TIMEOUT_MS: "60000",
+  });
+  assert.equal(config.provider, "self_hosted");
+  assert.equal(config.baseUrl, "http://127.0.0.1:18000/v1");
+  assert.equal(config.apiKey, selfHostedEnv.AI_API_KEY);
+  assert.equal(config.inputPrice, 0);
+  assert.equal(config.outputPrice, 0);
+  assert.equal(config.timeoutMs, 60000);
+  assert.throws(
+    () => readAiConfig({ ...selfHostedEnv, AI_API_KEY: "" }),
+    /AI_API_KEY/,
+  );
+  assert.throws(
+    () => readAiConfig({ ...selfHostedEnv, AI_TIMEOUT_MS: "60001" }),
+    /AI_TIMEOUT_MS/,
+  );
+  for (const endpoint of [
+    "http://public.example/v1",
+    "https://user:secret@example.com/v1",
+    "https://example.com/v1?key=secret",
+    "https://example.com/v1#fragment",
+    "file:///tmp/model",
+    "not-a-url",
+    "http://169.254.169.254/v1",
+  ])
+    assert.throws(
+      () => readAiConfig({ ...selfHostedEnv, AI_BASE_URL: endpoint }),
+      /AI_BASE_URL/,
+    );
+  for (const endpoint of [
+    "https://inference.example/v1",
+    "http://host.docker.internal:18000/v1",
+    "http://10.0.0.2:8000/v1",
+    "http://172.16.0.2/v1",
+    "http://192.168.1.2/v1",
+    "http://[::1]:8000/v1",
+    "http://[fd00::1]:8000/v1",
+  ])
+    assert.equal(
+      readAiConfig({ ...selfHostedEnv, AI_BASE_URL: endpoint }).enabled,
+      true,
+    );
+});
+
+test("GPU generation never implicitly enables paid OpenAI embeddings", () => {
+  const env = {
+    ...selfHostedEnv,
+    OPENAI_API_KEY: "separate-openai-key",
+    AI_EMBEDDING_MODEL: "test-embedding",
+    AI_EMBEDDING_USD_PER_MILLION: "0.2",
+  };
+  assert.equal(readSemanticConfig(env).enabled, false);
+  const explicit = readSemanticConfig({ ...env, AI_EMBEDDING_ENABLED: "true" });
+  assert.equal(explicit.enabled, true);
+  assert.equal(explicit.budget.provider, "openai");
+  assert.equal(explicit.budget.apiKey, env.OPENAI_API_KEY);
+  assert.equal(explicit.budget.baseUrl, "https://api.openai.com/v1");
+  assert.equal(
+    readSemanticConfig({
+      ...env,
+      OPENAI_API_KEY: "",
+      AI_EMBEDDING_ENABLED: "true",
+    }).enabled,
+    false,
+  );
+  assert.equal(
+    readSemanticConfig({
+      ...env,
+      AI_PROVIDER: "openai",
+      AI_EMBEDDING_ENABLED: "false",
+    }).enabled,
+    false,
   );
 });
 
@@ -71,6 +163,23 @@ test(
         AI_PROJECT_REQUESTS_PER_DAY: "1000",
       });
       const disabled = readAiConfig({});
+      const selfHosted = readAiConfig(selfHostedEnv);
+      const chatOutput = (value: unknown, finish = "stop") =>
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                index: 0,
+                finish_reason: finish,
+                message: {
+                  role: "assistant",
+                  content: JSON.stringify(value),
+                },
+              },
+            ],
+            usage: { prompt_tokens: 12, completion_tokens: 6 },
+          }),
+        );
       const output = (value: unknown) =>
         new Response(
           JSON.stringify({
@@ -162,6 +271,223 @@ test(
           ).rows[0];
           assert.equal(Number(usage.cost_microusd), 20);
           assert.equal(usage.status, "settled");
+        },
+      );
+      await t.test(
+        "self-hosted Chat Completions keeps strict output and token telemetry without API charges",
+        async () => {
+          const result = await requestStructured({
+            ...minimal,
+            config: { ...selfHosted, projectBudget: 1, userBudget: 1 },
+            fetchFn: async (url, init) => {
+              assert.equal(url, "http://127.0.0.1:18000/v1/chat/completions");
+              assert.equal(init.redirect, "error");
+              assert.equal(
+                (init.headers as Record<string, string>).Authorization,
+                "Bearer test-private-gpu-key",
+              );
+              const body = JSON.parse(String(init.body));
+              assert.equal(body.response_format.json_schema.strict, true);
+              assert.deepEqual(
+                body.response_format.json_schema.schema,
+                minimal.schema,
+              );
+              assert.equal(body.messages[0].role, "system");
+              assert.equal(
+                body.messages[1].content,
+                JSON.stringify(minimal.input),
+              );
+              assert.equal(body.max_tokens, 800);
+              assert.equal(body.stream, false);
+              assert.equal("tools" in body, false);
+              return chatOutput({ ok: true });
+            },
+          });
+          assert.ok("value" in result);
+          if ("value" in result) assert.deepEqual(result.value, { ok: true });
+          const usage = (
+            await pool!.query("SELECT * FROM ai_usage WHERE id=$1", [
+              result.usageId,
+            ])
+          ).rows[0];
+          assert.equal(usage.provider, "self_hosted");
+          assert.equal(Number(usage.cost_microusd), 0);
+          assert.equal(Number(usage.reserved_microusd), 0);
+          assert.equal(usage.input_tokens, 12);
+          assert.equal(usage.output_tokens, 6);
+          // The same exhausted budget must still prevent any paid provider call.
+          const paid = await requestStructured({
+            ...minimal,
+            config: { ...enabled, projectBudget: 1 },
+            fetchFn: async () => {
+              assert.fail("OpenAI budget must still be enforced");
+            },
+          });
+          assert.equal("error" in paid && paid.error, "AI_BUDGET_LIMIT");
+        },
+      );
+      await t.test(
+        "self-hosted reservations cap concurrent calls across clients and reclaim only stale GPU leases",
+        async () => {
+          const reserve = () =>
+            reserveAiBudget({
+              pool: pool!,
+              userId: employee.id,
+              config: selfHosted,
+              purpose: "gpu_concurrency",
+              model: selfHosted.model,
+              reservedMicrousd: 0,
+            });
+          const attempts = await Promise.allSettled([
+            reserve(),
+            reserve(),
+            reserve(),
+          ]);
+          const ids = attempts
+            .filter(
+              (r): r is PromiseFulfilledResult<string> =>
+                r.status === "fulfilled",
+            )
+            .map((r) => r.value);
+          assert.equal(ids.length, 2);
+          const rejected = attempts.find(
+            (r) => r.status === "rejected",
+          ) as PromiseRejectedResult;
+          assert.equal(rejected.reason.code, "AI_CONCURRENCY_LIMIT");
+          await pool!.query(
+            "UPDATE ai_usage SET created_at=now()-interval '121 seconds' WHERE id=$1",
+            [ids[0]],
+          );
+          const replacement = await reserve();
+          const expired = (
+            await pool!.query(
+              "SELECT status,outcome,cost_microusd FROM ai_usage WHERE id=$1",
+              [ids[0]],
+            )
+          ).rows[0];
+          assert.equal(expired.status, "settled");
+          assert.equal(expired.outcome, "expired_self_hosted");
+          assert.equal(Number(expired.cost_microusd), 0);
+          for (const id of [...ids, replacement])
+            await settleAiBudget(pool!, id, {
+              costMicrousd: 0,
+              outcome: "test_no_call",
+            });
+        },
+      );
+      await t.test(
+        "self-hosted malformed/truncated/refused responses and request quotas do not fall through to OpenAI",
+        async () => {
+          for (const [response, expected] of [
+            [
+              () => chatOutput({ ok: true }, "length"),
+              "INCOMPLETE_AI_RESPONSE",
+            ],
+            [
+              () => new Response(JSON.stringify({ choices: [] })),
+              "INVALID_AI_RESPONSE",
+            ],
+            [
+              () =>
+                new Response(
+                  JSON.stringify({
+                    choices: [
+                      {
+                        index: 0,
+                        finish_reason: "stop",
+                        message: { role: "assistant", content: "not json" },
+                      },
+                    ],
+                  }),
+                ),
+              "INVALID_AI_RESPONSE",
+            ],
+            [
+              () =>
+                new Response(
+                  JSON.stringify({
+                    choices: [
+                      {
+                        index: 0,
+                        finish_reason: "stop",
+                        message: {
+                          role: "assistant",
+                          content: null,
+                          refusal: "Cannot answer",
+                        },
+                      },
+                    ],
+                  }),
+                ),
+              "AI_REFUSAL",
+            ],
+            [() => new Response("", { status: 503 }), "AI_UNAVAILABLE"],
+          ] as const) {
+            let count = 0;
+            const result = await requestStructured({
+              ...minimal,
+              config: selfHosted,
+              fetchFn: async (url) => {
+                count++;
+                assert.equal(url.startsWith(selfHosted.baseUrl), true);
+                return response();
+              },
+            });
+            assert.equal(count, 1);
+            assert.equal("error" in result && result.error, expected);
+          }
+          const limited = await requestStructured({
+            ...minimal,
+            config: { ...selfHosted, userHourly: 1 },
+            fetchFn: async () => {
+              assert.fail("Shared request quota must prevent GPU calls too");
+            },
+          });
+          assert.equal("error" in limited && limited.error, "AI_RATE_LIMIT");
+        },
+      );
+      await t.test(
+        "a timed-out GPU call retains a concurrency slot temporarily but never an API charge",
+        async () => {
+          const config = { ...selfHosted, timeoutMs: 50, maxConcurrent: 1 };
+          const result = await requestStructured({
+            ...minimal,
+            config,
+            fetchFn: (_url, init) =>
+              new Promise((_resolve, reject) => {
+                init.signal!.addEventListener(
+                  "abort",
+                  () => reject(new Error("aborted")),
+                  { once: true },
+                );
+              }),
+          });
+          assert.equal("error" in result && result.error, "AI_TIMEOUT");
+          const usage = (
+            await pool!.query("SELECT * FROM ai_usage WHERE id=$1", [
+              result.usageId,
+            ])
+          ).rows[0];
+          assert.equal(Number(usage.cost_microusd), 0);
+          assert.equal(usage.outcome, "timeout_uncertain");
+          const busy = await requestStructured({
+            ...minimal,
+            config,
+            fetchFn: async () => {
+              assert.fail("Unknown remote completion still holds one slot");
+            },
+          });
+          assert.equal("error" in busy && busy.error, "AI_CONCURRENCY_LIMIT");
+          await pool!.query(
+            "UPDATE ai_usage SET created_at=now()-interval '121 seconds' WHERE id=$1",
+            [result.usageId],
+          );
+          const recovered = await requestStructured({
+            ...minimal,
+            config,
+            fetchFn: async () => chatOutput({ ok: true }),
+          });
+          assert.ok("value" in recovered);
         },
       );
       await t.test(
