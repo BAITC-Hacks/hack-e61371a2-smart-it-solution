@@ -1,0 +1,85 @@
+.cq-people-page,.cq-profile-page{min-width:0}
+.cq-people-panel,.cq-profile-panel{border:1px solid #e6e9eb;border-radius:16px;background:#fff;overflow:hidden}
+.cq-people-toolbar{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:24px}
+.cq-people-count{display:flex;align-items:center;gap:11px;flex-shrink:0}
+.cq-people-count h2{font-size:15px;font-weight:650;margin:0;color:#19282f}
+.cq-people-icon{display:flex;align-items:center;color:#637278}
+.cq-people-count-number{display:inline-flex;align-items:center;justify-content:center;min-width:28px;padding:3px 8px;border-radius:7px;color:#5d6b71;background:#f1f4f5;font-size:12px;font-weight:650}
+.cq-people-search{display:flex;align-items:center;gap:10px;max-width:420px;width:100%;min-width:220px;padding:0 13px;border:1px solid #e2e7e9;background:#fbfcfc;border-radius:10px;color:#607079;transition:border-color .15s,box-shadow .15s}
+.cq-people-search:focus-within{border-color:#147a66;box-shadow:0 0 0 3px #147a6616}
+.cq-people-search>svg{flex-shrink:0}
+.cq-people-search input{width:100%;min-width:0;min-height:43px;border:0;background:transparent;color:#19282f;font:inherit;font-size:13px;padding:0;outline:0}
+.cq-people-search input::placeholder{color:#607079}
+.cq-people-search input::-webkit-search-cancel-button{display:none}
+.cq-people-clear{display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;color:#637278;padding:6px;margin-right:-6px;cursor:pointer;border-radius:6px}
+.cq-people-clear:hover{background:#edf1f2}
+.cq-people-clear:focus-visible,.cq-people-open:focus-visible,.cq-people-name:focus-visible{outline:2px solid #147a66;outline-offset:4px;border-radius:3px}
+.cq-people-results>.error-state{margin:10px 24px 24px}
+.cq-people-table{width:100%;border-collapse:collapse;text-align:left;font-size:13px}
+.cq-people-table th{padding:13px 24px;background:#fafbfc;border-top:1px solid #edf0f1;border-bottom:1px solid #edf0f1;color:#607079;font-weight:500;font-size:11px;letter-spacing:.055em;text-transform:uppercase}
+.cq-people-table td{padding:20px 24px;border-bottom:1px solid #edf0f1;vertical-align:middle}
+.cq-people-table tbody tr:last-child td{border-bottom:0}
+.cq-people-table tbody tr{transition:background .15s}
+.cq-people-table tbody tr:hover{background:#fbfcfc}
+.cq-people-person{display:flex;align-items:center;gap:12px}
+.cq-people-person>div:first-child,.cq-people-person>span:first-child{flex-shrink:0}
+.cq-people-name{color:#21343d;font-weight:650;text-decoration:none;line-height:1.5}
+.cq-people-name:hover{color:#147a66}
+.cq-people-id{color:#607079;font-size:11px;margin-top:4px;display:flex;align-items:center;gap:7px}
+.cq-people-you{color:#147a66;background:#edf7f2;border-radius:4px;font-size:10px;padding:1px 5px}
+.cq-people-position{display:flex;flex-direction:column;align-items:flex-start;gap:7px;color:#46585f;font-size:12px;line-height:1.5}
+.cq-people-position .badge{font-size:10px;padding:2px 7px}
+.cq-people-department{color:#65747b;font-size:12px;line-height:1.5}
+.cq-people-open-cell{text-align:right}
+.cq-people-open{display:inline-flex;align-items:center;justify-content:flex-end;gap:9px;color:#147a66;text-decoration:none;font-size:12px;font-weight:600;white-space:nowrap;padding:7px 0}
+.cq-people-open:hover{color:#0c594a}
+.cq-people-mobile-label{display:none}
+.cq-people-pagination{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px 24px;border-top:1px solid #edf0f1;color:#607079;font-size:12px}
+.cq-people-pagination p{margin:0}
+.cq-people-pagination strong{font-weight:550;color:#475b64}
+.cq-people-page-controls{display:flex;align-items:center;gap:14px}
+.cq-people-page-controls .button{min-width:32px;min-height:32px;padding:6px;border-radius:7px}
+.cq-people-access-note{display:flex;align-items:flex-start;justify-content:center;gap:8px;margin:20px 0;color:#607079;font-size:12px;line-height:1.5}
+.cq-people-access-note svg{flex-shrink:0;margin-top:1px}
+.cq-people-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.cq-profile-back{margin:0 0 14px -8px}
+.cq-profile-back .button{font-size:12px;color:#607079;padding-left:8px}
+.cq-profile-identity{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:30px 32px;border:1px solid #e6e9eb;border-radius:16px;background:linear-gradient(110deg,#fff 65%,#f4faf7);margin-bottom:24px}
+.cq-profile-identity-main{display:flex;align-items:center;gap:22px;min-width:0}
+.cq-profile-avatar{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:84px;height:84px;border:1px solid #e3eee8;border-radius:22px;background:#edf6f1}
+.cq-profile-avatar .avatar{width:72px;height:72px;font-size:25px;border-radius:18px;background:transparent;color:#147a66}
+.cq-profile-name-line{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.cq-profile-name-line h2{margin:0;color:#19282f;font-size:24px;letter-spacing:-.6px;font-weight:650;line-height:1.3}
+.cq-profile-role{display:flex;flex-wrap:wrap;gap:9px;color:#677980;font-size:14px;line-height:1.5;margin:8px 0}
+.cq-profile-role>span{color:#a1aeac}
+.cq-profile-dept{display:flex;align-items:center;gap:7px;font-size:12px;color:#607079;margin:8px 0 0;line-height:1.5}
+.cq-profile-id{display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0;font-size:11px;color:#607079}
+.cq-profile-id strong{font-weight:500;font-size:13px;letter-spacing:.04em;color:#597069}
+.cq-profile-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(260px,1fr);gap:24px;align-items:start}
+.cq-profile-details{padding:26px}
+.cq-profile-section-heading{display:flex;gap:13px;align-items:flex-start;margin-bottom:12px}
+.cq-profile-section-icon{width:39px;height:39px;display:flex;align-items:center;justify-content:center;border-radius:11px;background:#f1f5f4;color:#65847a;flex-shrink:0}
+.cq-profile-section-heading h2{margin:1px 0 6px;font-weight:650;font-size:16px;color:#233740}
+.cq-profile-section-heading p{font-size:12px;line-height:1.6;color:#607079;margin:0}
+.cq-profile-detail-list{margin:22px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
+.cq-profile-detail-list>div{padding:19px 0;border-top:1px solid #edf0f1;min-width:0}
+.cq-profile-detail-list dt{font-size:11px;display:flex;align-items:center;gap:6px;color:#607079;min-height:19px}
+.cq-profile-detail-list dt svg{color:#97a69f}
+.cq-profile-detail-list dd{font-size:13px;font-weight:500;color:#435b64;margin:9px 0 0;line-height:1.6;overflow-wrap:anywhere}
+.cq-profile-goal{padding:28px;border-radius:16px;background:#edf6f1;border:1px solid #dfede5;min-height:280px}
+.cq-profile-goal-top{display:flex;justify-content:space-between;align-items:center;color:#789c8a;margin-bottom:22px}
+.cq-profile-goal-icon{width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:#dceee2;color:#39765d}
+.cq-profile-goal h2{margin:0 0 9px;color:#244d3e;font-size:18px;letter-spacing:-.3px}
+.cq-profile-goal>p,.cq-profile-goal-empty p{font-size:12px;line-height:1.7;color:#577062;margin:0}
+.cq-profile-goal-details{margin:25px 0 0;display:grid;gap:20px}
+.cq-profile-goal-details dt{font-size:11px;color:#577062;margin-bottom:9px}
+.cq-profile-goal-details dd{margin:0;font-size:19px;font-weight:600;line-height:1.4;color:#28513f;overflow-wrap:anywhere}
+.cq-profile-target-grade{display:inline-flex;padding:5px 11px;background:#dceee2;border:1px solid #d3e7da;color:#3a7358;border-radius:7px;font-size:12px;font-weight:600}
+.cq-profile-goal-empty{padding-top:12px}
+.cq-profile-goal-empty h3{font-size:14px;font-weight:600;color:#3d6654;margin:0 0 9px}
+@media(max-width:1200px){.cq-people-table th,.cq-people-table td{padding-left:18px;padding-right:18px}.cq-people-open span{display:none}.cq-people-open{min-width:30px}.cq-people-toolbar{gap:18px}.cq-profile-identity{padding:25px}.cq-profile-name-line h2{font-size:22px}}
+@media(max-width:900px){.cq-people-toolbar{align-items:stretch;flex-direction:column;padding:20px;gap:16px}.cq-people-search{max-width:none}.cq-profile-grid{grid-template-columns:1fr}.cq-profile-goal{min-height:auto}.cq-profile-goal-details{grid-template-columns:1fr 1fr}.cq-profile-id{display:none}}
+@media(max-width:600px){.cq-people-panel{border-radius:13px}.cq-people-toolbar{padding:18px}.cq-people-search{min-width:0}.cq-people-count h2{font-size:14px}.cq-people-table,.cq-people-table tbody{display:block}.cq-people-table thead{display:none}.cq-people-table tbody tr{display:grid;grid-template-columns:minmax(0,1fr) auto;padding:18px;border-top:1px solid #edf0f1;gap:14px 8px}.cq-people-table td{display:block;padding:0;border:0}.cq-people-table td:first-child{grid-column:1/-1}.cq-people-table td:nth-child(2){grid-column:1}.cq-people-table td:nth-child(3){grid-column:1}.cq-people-table td:nth-child(4){grid-column:2;grid-row:2/4;align-self:end}.cq-people-position{flex-direction:row;align-items:center;flex-wrap:wrap;gap:8px}.cq-people-mobile-label{display:block;font-size:10px;margin-bottom:3px;color:#607079}.cq-people-open{min-width:36px;min-height:36px;justify-content:center;background:#f0f7f3;border-radius:8px;padding:8px}.cq-people-pagination{padding:17px 18px;flex-direction:column;gap:16px;align-items:stretch}.cq-people-pagination p{text-align:center}.cq-people-page-controls{justify-content:space-between}.cq-people-page-controls .button{min-width:36px;min-height:36px}.cq-people-access-note{justify-content:flex-start;margin:17px 6px;font-size:11px}.cq-profile-identity{padding:23px 20px}.cq-profile-identity-main{gap:15px;align-items:flex-start}.cq-profile-avatar{width:61px;height:61px;border-radius:17px}.cq-profile-avatar .avatar{width:55px;height:55px;font-size:20px}.cq-profile-name-line{gap:7px}.cq-profile-name-line h2{font-size:20px}.cq-profile-role{font-size:12px;gap:6px}.cq-profile-dept{font-size:11px}.cq-profile-grid{gap:18px}.cq-profile-details{padding:22px 20px}.cq-profile-detail-list{gap:0 18px}.cq-profile-detail-list dd{font-size:12px}.cq-profile-section-heading p{font-size:11px}.cq-profile-goal{padding:24px}.cq-profile-goal-details dd{font-size:17px}}
+@media(max-width:600px){.cq-people-table thead{display:table-header-group;position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}}
+@media(max-width:900px){.cq-profile-identity{flex-wrap:wrap;gap:18px}.cq-profile-id{display:flex;flex-basis:100%;flex-direction:row;align-items:center;justify-content:flex-start;gap:10px;padding-top:14px;border-top:1px solid #e6e9eb}}
+@media(prefers-reduced-motion:reduce){.cq-people-search,.cq-people-table tbody tr{transition:none}}
