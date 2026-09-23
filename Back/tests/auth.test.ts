@@ -22,6 +22,7 @@ test("employee scope is parameterized and manager scope includes only direct rep
   assert.match(scope({ ...user, role: "manager" }).sql, /manager_id=\$1/);
 });
 test("import rejects missing numeric fields and out-of-range history", () => {
+  assert.throws(() => parseBundle({ history: [], historyCsv: "" }), ImportError);
   assert.throws(
     () =>
       parseBundle({
