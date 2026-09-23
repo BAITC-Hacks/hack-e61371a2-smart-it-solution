@@ -52,7 +52,10 @@ async function body(req: IncomingMessage, limit: number) {
   }
 }
 export function createApp(pool: Pool, config: Config) {
-  const attempts = new Map<string, { count: number; expires: number }>();
+  const attempts = new Map<
+    string,
+    { count: number; expires: number; inFlight: number }
+  >();
   const dummyHash = hashPassword(randomBytes(32).toString("hex"));
   const sessionCookie = (token: string, maxAge = 28800) =>
     `cq_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}${config.secure ? "; Secure" : ""}`;
@@ -108,20 +111,6 @@ export function createApp(pool: Pool, config: Config) {
         return;
       }
       if (method === "POST" && path === "/api/v1/auth/login") {
-        const now = Date.now();
-        for (const [k, v] of attempts) if (v.expires < now) attempts.delete(k);
-        const ip = req.socket.remoteAddress ?? "unknown";
-        const rate = attempts.get(ip) ?? { count: 0, expires: now + 900000 };
-        if (rate.count >= 20) {
-          res.setHeader("Retry-After", Math.ceil((rate.expires - now) / 1000));
-          throw new HttpError(
-            429,
-            "RATE_LIMITED",
-            "Слишком много попыток входа. Попробуйте позже",
-          );
-        }
-        rate.count++;
-        attempts.set(ip, rate);
         const payload = z
           .object({
             login: z.string().min(1).max(120),
@@ -130,57 +119,112 @@ export function createApp(pool: Pool, config: Config) {
           })
           .strict()
           .parse(await body(req, 65536));
-        const row = (
-          await pool.query(
-            `SELECT ${userColumns},u.password_hash FROM user_accounts u WHERE login=$1 AND active`,
-            [payload.login],
-          )
-        ).rows[0];
-        const demoLogin = payload.demo === true;
-        const allowed = demoLogin
-          ? config.demo && row?.demo
-          : !row?.demo &&
-            (await verifyPassword(
-              payload.password ?? "",
-              row?.password_hash ?? (await dummyHash),
-            ));
-        if (!row || !allowed)
+        const now = Date.now();
+        for (const [k, v] of attempts) if (v.expires < now) attempts.delete(k);
+        const ip = req.socket.remoteAddress ?? "unknown";
+        const rateKey = JSON.stringify([
+          ip,
+          payload.login.normalize("NFKC").toLowerCase(),
+        ]);
+        const rate = attempts.get(rateKey) ?? {
+          count: 0,
+          expires: now + 900000,
+          inFlight: 0,
+        };
+        if (
+          rate.count + rate.inFlight >= 20 ||
+          (!attempts.has(rateKey) && attempts.size >= 10000)
+        ) {
+          res.setHeader(
+            "Retry-After",
+            rate.count >= 20 ? Math.ceil((rate.expires - now) / 1000) : 1,
+          );
           throw new HttpError(
-            401,
-            "INVALID_CREDENTIALS",
-            "Неверный логин или пароль",
+            429,
+            "RATE_LIMITED",
+            "Слишком много попыток входа. Попробуйте позже",
           );
-        const token = randomBytes(32).toString("hex");
-        const csrfToken = randomBytes(32).toString("hex");
-        const client = await pool.connect();
-        try {
-          await client.query("BEGIN");
-          await client.query(
-            "DELETE FROM sessions WHERE expires_at < now() OR revoked_at IS NOT NULL",
-          );
-          await client.query(
-            "UPDATE sessions SET revoked_at=now() WHERE token_hash=$1",
-            [tokenHash(cookieToken(req))],
-          );
-          await client.query(
-            "INSERT INTO sessions(user_id,token_hash,csrf_token,expires_at) VALUES($1,$2,$3,now()+interval '8 hours')",
-            [row.id, tokenHash(token), csrfToken],
-          );
-          await client.query(
-            "INSERT INTO audit_log(actor,action,entity,entity_id,request_id) VALUES($1,'auth.login','user_accounts',$3,$2)",
-            [row.id, requestId, row.id],
-          );
-          await client.query("COMMIT");
-        } catch (e) {
-          await client.query("ROLLBACK");
-          throw e;
-        } finally {
-          client.release();
         }
-        const { password_hash: _, ...user } = row;
-        res.setHeader("Set-Cookie", sessionCookie(token));
-        send({ user, csrfToken });
-        return;
+        rate.inFlight++;
+        attempts.set(rateKey, rate);
+        try {
+          let row = (
+            await pool.query(
+              `SELECT ${userColumns},u.password_hash FROM user_accounts u WHERE login=$1 AND active`,
+              [payload.login],
+            )
+          ).rows[0];
+          const demoLogin = payload.demo === true;
+          const allowed = demoLogin
+            ? config.demo && row?.demo
+            : !row?.demo &&
+              (await verifyPassword(
+                payload.password ?? "",
+                row?.password_hash ?? (await dummyHash),
+              ));
+          if (!row || !allowed) {
+            rate.count++;
+            throw new HttpError(
+              401,
+              "INVALID_CREDENTIALS",
+              "Неверный логин или пароль",
+            );
+          }
+          const token = randomBytes(32).toString("hex");
+          const csrfToken = randomBytes(32).toString("hex");
+          const client = await pool.connect();
+          try {
+            await client.query("BEGIN");
+            const current = (
+              await client.query(
+                `SELECT ${userColumns},u.password_hash FROM user_accounts u WHERE u.id=$1 AND u.active FOR UPDATE`,
+                [row.id],
+              )
+            ).rows[0];
+            if (
+              !current ||
+              current.password_hash !== row.password_hash ||
+              current.demo !== row.demo
+            ) {
+              rate.count++;
+              throw new HttpError(
+                401,
+                "INVALID_CREDENTIALS",
+                "Неверный логин или пароль",
+              );
+            }
+            row = current;
+            await client.query(
+              "DELETE FROM sessions WHERE expires_at < now() OR revoked_at IS NOT NULL",
+            );
+            await client.query(
+              "UPDATE sessions SET revoked_at=now() WHERE token_hash=$1",
+              [tokenHash(cookieToken(req))],
+            );
+            await client.query(
+              "INSERT INTO sessions(user_id,token_hash,csrf_token,expires_at) VALUES($1,$2,$3,now()+interval '8 hours')",
+              [row.id, tokenHash(token), csrfToken],
+            );
+            await client.query(
+              "INSERT INTO audit_log(actor,action,entity,entity_id,request_id) VALUES($1,'auth.login','user_accounts',$3,$2)",
+              [row.id, requestId, row.id],
+            );
+            await client.query("COMMIT");
+          } catch (e) {
+            await client.query("ROLLBACK");
+            throw e;
+          } finally {
+            client.release();
+          }
+          const { password_hash: _, ...user } = row;
+          rate.count = 0;
+          res.setHeader("Set-Cookie", sessionCookie(token));
+          send({ user, csrfToken });
+          return;
+        } finally {
+          rate.inFlight--;
+          if (rate.inFlight === 0 && rate.count === 0) attempts.delete(rateKey);
+        }
       }
       const session = (
         await pool.query(

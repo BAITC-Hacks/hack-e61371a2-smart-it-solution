@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { notificationText } from "./notification-copy.js";
 import { z } from "zod";
 import { readAiConfig } from "./ai-config.js";
+import { careerFactors, CAREER_COPY_VERSION } from "./career-copy.js";
 import {
   HttpError,
   type Queryable,
@@ -402,33 +403,19 @@ export async function computeRecommendations(
       weights.goal * goalMatch +
       weights.history * history +
       weights.availability / (1 + e.durationHours / 8);
-    const factors = [
-      {
-        id: "grade",
-        text: `Текущая роль ${profile.employee.role}, грейд ${profile.employee.grade} входят в аудиторию мероприятия.`,
-      },
-      {
-        id: "skill_gap",
-        text: expectedGains
-          .map(
-            (g) =>
-              `${g.skillId}: ${g.from} → ${g.to}, требование ${g.required}, сокращение разрыва ${g.gapClosed}`,
-          )
-          .join("; "),
-      },
-      {
-        id: "history",
-        text: `Предыдущих участий: ${past.length}; завершений: ${past.filter((p) => p.status === "completed").length}; отказов/пропусков: ${negative}.`,
-      },
-      {
-        id: "goal",
-        text: `${profile.goal!.inferred ? "Предложенная" : "Выбранная"} цель: ${profile.goal!.targetRole} / ${profile.goal!.targetGrade}. Критические разрывы сокращаются на ${critical}, прочие на ${other}.`,
-      },
-      {
-        id: "duration",
-        text: `Длительность: ${e.durationHours} ч.; формат: ${e.format}.`,
-      },
-    ];
+    const factors = careerFactors(profile.employee.language, {
+      role: profile.employee.role,
+      grade: profile.employee.grade,
+      gains: expectedGains,
+      participations: past.length,
+      completions: past.filter((p) => p.status === "completed").length,
+      negativeHistory: negative,
+      goal: profile.goal!,
+      criticalGain: critical,
+      otherGain: other,
+      durationHours: e.durationHours,
+      format: e.format,
+    });
     ranked.push({
       eventId: e.eventId,
       title: e.title,
@@ -468,6 +455,7 @@ export async function computeRecommendations(
     .update(
       JSON.stringify({
         algorithm: ALGORITHM_VERSION,
+        copyVersion: CAREER_COPY_VERSION,
         weights,
         employee: profile.employee,
         goal: profile.goal,

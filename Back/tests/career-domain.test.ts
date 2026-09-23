@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { careerFactors } from "../src/career-copy.js";
 import {
   applyEffects,
   deriveLevels,
@@ -147,4 +148,43 @@ test("completed voluntary events cannot repeat except EV_036; active registratio
       history: [{ eventId: event.eventId, status: "registered" }],
     } as CareerProfile).reasons.includes("ALREADY_ACTIVE"),
   );
+});
+
+test("localized career factors preserve stable IDs and factual numeric values", () => {
+  const context = {
+    role: "Backend Engineer",
+    grade: "Junior",
+    gains: [{ skillId: "SK_SQL", from: 1, to: 3, required: 4, gapClosed: 2 }],
+    participations: 7,
+    completions: 2,
+    negativeHistory: 3,
+    goal: { targetRole: "Data Analyst", targetGrade: "Senior", inferred: true },
+    criticalGain: 2,
+    otherGain: 0,
+    durationHours: 1.5,
+    format: "self_paced",
+  };
+  const results = ["ru", "kk", "en"].map((language) =>
+    careerFactors(language, context),
+  );
+  assert.deepEqual(
+    results[0]!.map((f) => f.id),
+    ["grade", "skill_gap", "history", "goal", "duration"],
+  );
+  for (const factors of results) {
+    assert.deepEqual(
+      factors.map((f) => f.id),
+      results[0]!.map((f) => f.id),
+    );
+    assert.deepEqual(
+      factors.map((f) => f.text.match(/\d+(?:\.\d+)?/g)),
+      results[0]!.map((f) => f.text.match(/\d+(?:\.\d+)?/g)),
+    );
+    assert.ok(factors[1]!.text.includes("SK_SQL: 1 → 3"));
+    assert.ok(factors.every((f) => f.text.length > 0));
+  }
+  assert.match(results[0]![3]!.text, /Предложенная цель/);
+  assert.match(results[1]![3]!.text, /Ұсынылған мақсат/);
+  assert.match(results[2]![3]!.text, /Suggested goal/);
+  assert.deepEqual(careerFactors(undefined, context), results[0]);
 });
