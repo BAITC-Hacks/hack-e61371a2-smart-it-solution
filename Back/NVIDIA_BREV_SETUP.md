@@ -18,6 +18,8 @@ flowchart LR
 
 Права, поиск по утверждённым статьям, контакты, расчёты навыков и проверка ответа остаются в Back. Модель выбирает разрешённые источники и факты; сервер собирает ответ. Чувствительные сценарии используют проверенные инструкции. Свободная генерация корпоративных регламентов не включена. Поиск пока SQL; OpenAI embeddings включаются отдельно.
 
+Живые проверки и замеры: [BREV_ACCEPTANCE.md](BREV_ACCEPTANCE.md).
+
 ## Повторный запуск
 
 Команды выполняются из корня репозитория. Нужны Docker Compose, Python 3, OpenSSH и авторизованный Brev CLI. На этом Mac CLI находится в `~/.local/bin/brev`.
@@ -36,7 +38,7 @@ ssh -T career-quest-ai 'docker logs --tail 40 career-quest-llm'
 # Получить актуальный адрес Brev и подготовить отдельный ключ туннеля:
 python3 infra/brev/connect.py
 
-python3 infra/brev/compose.py up -d --build --wait
+python3 infra/brev/compose.py up -d --build --wait --wait-timeout 600
 ```
 
 `compose.py` сохраняет настройки основного приложения: сначала передаёт Docker Compose существующий **корневой `.env`**, затем `.env.brev`. Вторая конфигурация переопределяет только заданные в ней переменные AI и туннеля; пароль БД, `APP_ORIGIN`, OIDC и другие основные настройки сохраняются. Сам wrapper не читает содержимое и не изменяет env-файлы. Экспортированные переменные shell сохраняют стандартный приоритет Compose. Если корневого `.env` нет, используются значения по умолчанию из `compose.yaml`.
@@ -44,7 +46,7 @@ python3 infra/brev/compose.py up -d --build --wait
 Если основной запуск использует другой env-файл, укажите тот же файл перед командой Compose; относительный путь считается от текущего каталога:
 
 ```bash
-python3 infra/brev/compose.py --base-env-file deploy/app.env up -d --build --wait
+python3 infra/brev/compose.py --base-env-file deploy/app.env up -d --build --wait --wait-timeout 600
 ```
 
 Используйте этот параметр и для последующих `ps`, `exec`, `stop`. `Back/.env` предназначен для локального Node.js и автоматически не подключается к Compose. Wrapper всегда выбирает оба Compose-файла и корень проекта, поэтому его можно вызвать по полному пути из другого каталога. Требуется Docker Compose с поддержкой нескольких `--env-file`. Отсутствующий `.env.brev` или явно указанный основной файл останавливает запуск с пояснением. На системах, где Python 3 доступен как `python`, замените `python3` на `python`.
@@ -120,6 +122,7 @@ brev stop career-quest-ai
 | SSH отказывает после stop/start | `brev refresh`, затем `connect.py`, пересоздать `ai-tunnel` |
 | `INVALID_AI_RESPONSE` / `INVALID_AI_SELECTION` | Backend отклонил ответ; проверить модель на одинаковых обезличенных примерах |
 | OOM | Проверить VRAM/RAM, сохранить ограничение контекста и параллелизма; не запускать вторую модель на том же GPU |
+| UI без обновлённого чата | Получить актуальный main и пересобрать сервис front; экран находится по /assistant |
 | Помощник использует fallback | Проверить конфигурацию AI в административных настройках и доступность модели; статус «включено» показывает конфигурацию, а не live-проверку соединения |
 
 Источники: [модель Qwen](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507), [vLLM 0.30.0](https://github.com/vllm-project/vllm/releases/tag/v0.30.0), [Docker deployment](https://docs.vllm.ai/en/v0.30.0/deployment/docker/), [structured outputs](https://docs.vllm.ai/en/v0.30.0/features/structured_outputs/), [безопасность vLLM](https://docs.vllm.ai/en/v0.30.0/usage/security/), [стоимость состояний Brev](https://docs.nvidia.com/brev/concepts/gpu-instances).

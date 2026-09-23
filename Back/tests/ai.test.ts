@@ -612,6 +612,95 @@ test(
         },
       );
       await t.test(
+        "assistant selection constrains IDs and renders a selected demonstration instruction without inventing contacts",
+        async () => {
+          let selectedId: string | undefined;
+          const answer = await answerAssistant({
+            pool: pool!,
+            user: employee,
+            question: "Что указано в демонстрационной инструкции про ноутбук?",
+            locale: "ru",
+            config: selfHosted,
+            fetchFn: async (_url, init) => {
+              const body = JSON.parse(String(init.body));
+              const input = JSON.parse(body.messages[1].content);
+              const properties =
+                body.response_format.json_schema.schema.properties;
+              const ids = input.sources.map(
+                (source: { id: string }) => source.id,
+              );
+              assert.ok(ids.length > 0);
+              assert.deepEqual(properties.sourceIds.items.enum, ids);
+              assert.equal(
+                properties.sourceIds.maxItems,
+                Math.min(3, ids.length),
+              );
+              // No career facts were supplied: an empty array is required,
+              // rather than an invalid JSON Schema enum: [].
+              assert.deepEqual(input.facts, []);
+              assert.equal(properties.factIds.maxItems, 0);
+              assert.equal("enum" in properties.factIds.items, false);
+              selectedId = ids[0];
+              return chatOutput({
+                sourceIds: [selectedId],
+                factIds: [],
+                needsClarification: false,
+              });
+            },
+          });
+          assert.equal(answer.source, "ai");
+          assert.deepEqual(
+            answer.citations.map((citation) => citation.id),
+            [selectedId],
+          );
+          assert.equal(answer.citations[0]!.synthetic, true);
+          assert.match(answer.content, /Демонстрационный материал/);
+          assert.deepEqual(answer.contacts, []);
+          assert.deepEqual(answer.facts, []);
+        },
+      );
+      await t.test(
+        "assistant selection constrains career fact IDs and renders the actual own profile",
+        async () => {
+          let expectedProfile = "";
+          const answer = await answerAssistant({
+            pool: pool!,
+            user: employee,
+            question: "Какая у меня текущая роль и грейд?",
+            locale: "ru",
+            config: selfHosted,
+            fetchFn: async (_url, init) => {
+              const body = JSON.parse(String(init.body));
+              const input = JSON.parse(body.messages[1].content);
+              const properties =
+                body.response_format.json_schema.schema.properties;
+              const facts = input.facts as { id: string; text: string }[];
+              assert.deepEqual(
+                properties.factIds.items.enum,
+                facts.map((fact) => fact.id),
+              );
+              const profile = facts.find((fact) => fact.id === "profile");
+              assert.ok(profile);
+              expectedProfile = profile.text;
+              return chatOutput({
+                sourceIds: [],
+                factIds: [profile.id],
+                needsClarification: false,
+              });
+            },
+          });
+          assert.equal(answer.source, "ai");
+          assert.deepEqual(
+            answer.facts.map((fact) => fact.id),
+            ["profile"],
+          );
+          assert.ok(answer.content.includes(expectedProfile));
+          assert.deepEqual(answer.citations, []);
+          assert.deepEqual(answer.contacts, []);
+          assert.equal(answer.fallbackReason, undefined);
+        },
+      );
+      await t.test(
         "assistant uses approved excerpts, refuses fabricated citations, no AI on sensitive scripts",
         async () => {
           const answer = await answerAssistant({
