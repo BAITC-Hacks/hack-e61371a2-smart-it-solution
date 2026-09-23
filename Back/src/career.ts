@@ -491,6 +491,8 @@ function recommendationRunVersion(useAi: boolean) {
       .update(
         JSON.stringify({
           enabled: c.enabled,
+          provider: c.provider,
+          baseUrl: c.baseUrl,
           model: c.recommendModel,
           maxOutput: c.maxOutput,
           maxInput: c.maxInputBytes,

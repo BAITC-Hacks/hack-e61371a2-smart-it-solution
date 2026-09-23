@@ -10,6 +10,7 @@ import {
   requireRole,
 } from "./http.js";
 import { readAiConfig, type AiConfig } from "./ai-config.js";
+import { parseStructuredResponse, structuredRequest } from "./ai-provider.js";
 import {
   searchGuide,
   guideContacts,
@@ -30,22 +31,28 @@ export async function reserveAiBudget(args: BudgetArgs): Promise<string> {
   const run = async (db: Queryable) => {
     // A shared transaction lock prevents concurrent reservations from overspending the project budget.
     await db.query("SELECT pg_advisory_xact_lock(2401905)");
+    // Self-hosted calls have no token charge. Expire abandoned slots only after the
+    // maximum 60s request timeout plus a 60s cancellation/connection allowance.
+    await db.query(`UPDATE ai_usage SET status='settled',cost_microusd=0,outcome='expired_self_hosted',settled_at=now()
+      WHERE provider='self_hosted' AND status='reserved' AND created_at<=now()-interval '120 seconds'`);
     const aggregate = (
       await db.query(
         `SELECT
-   COALESCE(sum(CASE WHEN status='reserved' THEN reserved_microusd ELSE cost_microusd END),0)::text AS project_cost,
-   COALESCE(sum(CASE WHEN status='reserved' THEN reserved_microusd ELSE cost_microusd END) FILTER(WHERE user_id=$1 AND created_at>=date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'),0)::text AS user_cost,
+   COALESCE(sum(CASE WHEN status='reserved' THEN reserved_microusd ELSE cost_microusd END) FILTER(WHERE provider='openai'),0)::text AS project_cost,
+   COALESCE(sum(CASE WHEN status='reserved' THEN reserved_microusd ELSE cost_microusd END) FILTER(WHERE provider='openai' AND user_id=$1 AND created_at>=date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'),0)::text AS user_cost,
    count(*) FILTER(WHERE user_id=$1 AND created_at>now()-interval '1 hour')::int AS user_requests,
-   count(*) FILTER(WHERE created_at>=date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')::int AS project_requests
+   count(*) FILTER(WHERE created_at>=date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')::int AS project_requests,
+   count(*) FILTER(WHERE provider='self_hosted' AND (status='reserved' OR outcome IN ('timeout_uncertain','network_uncertain')) AND created_at>now()-interval '120 seconds')::int AS concurrent_requests
    FROM ai_usage`,
         [args.userId],
       )
     ).rows[0];
     if (
-      Number(aggregate.project_cost) + args.reservedMicrousd >
+      args.config.provider === "openai" &&
+      (Number(aggregate.project_cost) + args.reservedMicrousd >
         args.config.projectBudget ||
-      Number(aggregate.user_cost) + args.reservedMicrousd >
-        args.config.userBudget
+        Number(aggregate.user_cost) + args.reservedMicrousd >
+          args.config.userBudget)
     )
       throw new HttpError(
         429,
@@ -57,10 +64,25 @@ export async function reserveAiBudget(args: BudgetArgs): Promise<string> {
       aggregate.project_requests >= args.config.projectDaily
     )
       throw new HttpError(429, "AI_RATE_LIMIT", "Достигнут лимит запросов ИИ");
+    if (
+      args.config.provider === "self_hosted" &&
+      aggregate.concurrent_requests >= args.config.maxConcurrent
+    )
+      throw new HttpError(
+        429,
+        "AI_CONCURRENCY_LIMIT",
+        "Помощник занят, повторите запрос позже",
+      );
     return (
       await db.query(
-        `INSERT INTO ai_usage(user_id,purpose,model,status,reserved_microusd) VALUES($1,$2,$3,'reserved',$4) RETURNING id`,
-        [args.userId, args.purpose, args.model, args.reservedMicrousd],
+        `INSERT INTO ai_usage(user_id,purpose,model,status,reserved_microusd,provider) VALUES($1,$2,$3,'reserved',$4,$5) RETURNING id`,
+        [
+          args.userId,
+          args.purpose,
+          args.model,
+          args.config.provider === "self_hosted" ? 0 : args.reservedMicrousd,
+          args.config.provider,
+        ],
       )
     ).rows[0].id as string;
   };
@@ -149,22 +171,8 @@ export async function requestStructured(
   const c = args.config;
   if (!c.enabled) return { error: "AI_DISABLED" };
   const model = args.model ?? c.model;
-  const payload = {
-    model,
-    store: false,
-    instructions: args.instructions,
-    input: JSON.stringify(args.input),
-    max_output_tokens: c.maxOutput,
-    text: {
-      format: {
-        type: "json_schema",
-        name: "career_quest_response",
-        strict: true,
-        schema: args.schema,
-      },
-    },
-  };
-  const encoded = JSON.stringify(payload);
+  const request = structuredRequest(c, { ...args, model });
+  const encoded = JSON.stringify(request.body);
   const bytes = Buffer.byteLength(encoded, "utf8");
   if (bytes > c.maxInputBytes) return { error: "CONTEXT_LIMIT" };
   // UTF-8 bytes plus protocol allowance is deliberately more conservative than a language-specific tokenizer estimate.
@@ -193,18 +201,16 @@ export async function requestStructured(
       }
       let response: Response;
       try {
-        response = await (args.fetchFn ?? fetch)(
-          "https://api.openai.com/v1/responses",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${c.apiKey}`,
-            },
-            body: encoded,
-            signal: controller.signal,
+        response = await (args.fetchFn ?? fetch)(request.url, {
+          method: "POST",
+          redirect: "error",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${c.apiKey}`,
           },
-        );
+          body: encoded,
+          signal: controller.signal,
+        });
       } catch {
         // A timed-out request might already have been billed. Keep its full reservation; never retry it blindly.
         await settleAiBudget(args.pool, usageId, {
@@ -244,41 +250,26 @@ export async function requestStructured(
       } catch {
         await settleAiBudget(args.pool, usageId, {
           costMicrousd: reserved,
-          outcome: "invalid_response",
+          outcome: controller.signal.aborted
+            ? "timeout_uncertain"
+            : "invalid_response",
         });
-        return { error: "INVALID_AI_RESPONSE", usageId };
+        return {
+          error: controller.signal.aborted
+            ? "AI_TIMEOUT"
+            : "INVALID_AI_RESPONSE",
+          usageId,
+        };
       }
-      const envelope = z
-        .object({
-          status: z.string().optional(),
-          usage: z
-            .object({
-              input_tokens: z.number().int().nonnegative(),
-              output_tokens: z.number().int().nonnegative(),
-            })
-            .optional(),
-          output: z
-            .array(
-              z.object({
-                type: z.string(),
-                content: z
-                  .array(
-                    z.object({ type: z.string(), text: z.string().optional() }),
-                  )
-                  .optional(),
-              }),
-            )
-            .default([]),
-        })
-        .safeParse(raw);
-      if (!envelope.success) {
+      const envelope = parseStructuredResponse(c.provider, raw);
+      if (!envelope) {
         await settleAiBudget(args.pool, usageId, {
           costMicrousd: reserved,
           outcome: "invalid_response",
         });
         return { error: "INVALID_AI_RESPONSE", usageId };
       }
-      const usage = envelope.data.usage;
+      const usage = envelope.usage;
       await settleAiBudget(args.pool, usageId, {
         costMicrousd: usage
           ? Math.ceil(
@@ -288,17 +279,12 @@ export async function requestStructured(
           : reserved,
         inputTokens: usage?.input_tokens,
         outputTokens: usage?.output_tokens,
-        outcome: envelope.data.status ?? "unknown",
+        outcome: envelope.status,
       });
-      if (envelope.data.status !== "completed")
+      if (envelope.refusal) return { error: "AI_REFUSAL", usageId };
+      if (envelope.status !== "completed")
         return { error: "INCOMPLETE_AI_RESPONSE", usageId };
-      const content = envelope.data.output.flatMap((o) => o.content ?? []);
-      if (content.some((i) => i.type === "refusal"))
-        return { error: "AI_REFUSAL", usageId };
-      const text = content
-        .filter((i) => i.type === "output_text")
-        .map((i) => i.text ?? "")
-        .join("");
+      const text = envelope.text;
       try {
         return { value: JSON.parse(text), usageId };
       } catch {
@@ -323,9 +309,7 @@ export type RerankArgs = {
   config?: AiConfig;
   fetchFn?: FetchLike;
 };
-export async function rerankRecommendations(
-  args: RerankArgs,
-): Promise<{
+export async function rerankRecommendations(args: RerankArgs): Promise<{
   source: "ai" | "fallback";
   eventIds: string[];
   reasonFactIds: Record<string, string[]>;
@@ -850,6 +834,9 @@ export async function handleAssistant(
     const spent = Number(totals.charged_microusd);
     ctx.send({
       enabled: config.enabled,
+      provider: config.provider,
+      costBasis: "openai_api_tokens",
+      gpuCostExcluded: true,
       model: config.model || null,
       recommendModel: config.recommendModel || null,
       budgetUsd: config.projectBudget / 1e6,
@@ -1022,7 +1009,7 @@ export async function handleAssistant(
           "Достигнут лимит сообщений",
         );
       await db.query(
-        `UPDATE assistant_threads SET processing_until=now()+interval '30 seconds',updated_at=now() WHERE id=$1`,
+        `UPDATE assistant_threads SET processing_until=now()+interval '120 seconds',updated_at=now() WHERE id=$1`,
         [id],
       );
       await db.query(

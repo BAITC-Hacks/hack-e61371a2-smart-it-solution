@@ -8,3 +8,5 @@ docs
 **/test-results
 **/playwright-report
 **/coverage
+**/.cache
+**/__pycache__
