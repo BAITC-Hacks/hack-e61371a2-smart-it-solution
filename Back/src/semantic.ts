@@ -45,12 +45,22 @@ export type SemanticConfig = {
 export function readSemanticConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): SemanticConfig {
-  const base = readAiConfig({ ...env, AI_ENABLED: "false" });
+  // Embeddings always use OpenAI credentials and its token budget, independently
+  // of generation. Switching generation to a GPU must not enable paid API calls.
+  const base = readAiConfig({
+    ...env,
+    AI_ENABLED: "false",
+    AI_PROVIDER: "openai",
+  });
+  const enabled =
+    env.AI_EMBEDDING_ENABLED === undefined
+      ? env.AI_ENABLED === "true" && (env.AI_PROVIDER ?? "openai") === "openai"
+      : z.enum(["true", "false"]).parse(env.AI_EMBEDDING_ENABLED) === "true";
   const model = (env.AI_EMBEDDING_MODEL ?? "").trim();
   const price = Number(env.AI_EMBEDDING_USD_PER_MILLION);
   return {
     enabled:
-      env.AI_ENABLED === "true" &&
+      enabled &&
       Boolean(base.apiKey && model) &&
       Number.isFinite(price) &&
       price > 0,
@@ -64,7 +74,7 @@ function configured(config: SemanticConfig) {
     throw new HttpError(
       503,
       "SEMANTIC_NOT_CONFIGURED",
-      "Нужны AI_ENABLED, серверный ключ, модель embeddings и явная цена",
+      "Нужны AI_EMBEDDING_ENABLED, ключ OpenAI, модель embeddings и явная цена",
     );
 }
 async function assertCurrentActor(db: Queryable, user: User, lock = false) {

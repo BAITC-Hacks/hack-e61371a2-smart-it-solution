@@ -1,0 +1,42 @@
+# Start with: docker compose --env-file .env.brev -f compose.yaml -f compose.brev.yaml up -d --build
+# Shares only the backend network namespace; no model port is published on the host.
+services:
+  ai-tunnel:
+    build:
+      context: .
+      dockerfile: infra/brev/ssh-tunnel.Dockerfile
+    network_mode: service:back
+    restart: unless-stopped
+    depends_on:
+      back: { condition: service_healthy, restart: true }
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - ./.cache/brev/id_ed25519:/run/ssh/id_ed25519:ro
+      - ./.cache/brev/known_hosts:/run/ssh/known_hosts:ro
+    command:
+      - -NT
+      - -o
+      - BatchMode=yes
+      - -o
+      - IdentitiesOnly=yes
+      - -o
+      - StrictHostKeyChecking=yes
+      - -o
+      - UserKnownHostsFile=/run/ssh/known_hosts
+      - -o
+      - ExitOnForwardFailure=yes
+      - -o
+      - ServerAliveInterval=15
+      - -o
+      - ServerAliveCountMax=3
+      - -o
+      - ConnectTimeout=10
+      - -i
+      - /run/ssh/id_ed25519
+      - -L
+      - 127.0.0.1:18000:127.0.0.1:8000
+      - -p
+      - ${BREV_SSH_PORT:?Run python3 infra/brev/connect.py first}
+      - ${BREV_SSH_USER:-ubuntu}@${BREV_SSH_HOST:?Run python3 infra/brev/connect.py first}

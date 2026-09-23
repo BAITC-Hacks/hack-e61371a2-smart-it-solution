@@ -11898,6 +11898,26 @@
                         "enabled": {
                           "type": "boolean"
                         },
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "openai",
+                            "self_hosted"
+                          ],
+                          "description": "Configured generation provider. Embeddings, when explicitly enabled, continue to use OpenAI independently."
+                        },
+                        "costBasis": {
+                          "type": "string",
+                          "enum": [
+                            "openai_api_tokens"
+                          ],
+                          "description": "Dollar totals and budgets account only for OpenAI API token charges and outstanding conservative reservations."
+                        },
+                        "gpuCostExcluded": {
+                          "type": "boolean",
+                          "const": true,
+                          "description": "Always true: Brev GPU uptime and storage costs are external infrastructure charges and are not included in this ledger. Zero self-hosted token charges do not mean the GPU is free."
+                        },
                         "model": {
                           "anyOf": [
                             {
@@ -11919,17 +11939,21 @@
                           ]
                         },
                         "budgetUsd": {
-                          "type": "number"
+                          "type": "number",
+                          "description": "Project limit for OpenAI API token charges, excluding Brev GPU and storage."
                         },
                         "chargedUsd": {
-                          "type": "number"
+                          "type": "number",
+                          "description": "Settled OpenAI API token cost plus unresolved conservative reservations, excluding Brev GPU and storage."
                         },
                         "remainingUsd": {
-                          "type": "number"
+                          "type": "number",
+                          "description": "Remaining OpenAI API token budget. This is not the remaining Brev credit balance."
                         },
                         "requests": {
                           "type": "integer",
-                          "minimum": 0
+                          "minimum": 0,
+                          "description": "Recorded inference and embedding attempts across both providers."
                         },
                         "unresolvedReservations": {
                           "type": "integer",
@@ -11987,7 +12011,8 @@
               }
             }
           }
-        }
+        },
+        "description": "Admin-only API token usage and budget. Self-hosted inference records token telemetry with zero API token charges; Brev GPU uptime and storage must be tracked separately in Brev. Changing generation providers does not reset the OpenAI spending ledger."
       }
     },
     "/hr/overview": {
