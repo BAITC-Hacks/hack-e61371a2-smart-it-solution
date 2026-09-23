@@ -289,6 +289,36 @@ test(
           await get("/hr/overview", manager, 403);
           await get("/manager/overview", employee, 403);
           assert.equal((await get("/hr/roi", hr)).available, false);
+          const programs = await get("/hr/programs", hr);
+          assert.ok(
+            programs.every(
+              (p: any) =>
+                Number.isFinite(p.observedSkillPoints) &&
+                p.observedGapClosure >= 0,
+            ),
+          );
+          await pool!.query(
+            "INSERT INTO career_activity_log(employee_id,event_id,stage,date) VALUES($1,'EV_005','offered','2026-09-18'),($1,'EV_005','registered','2026-09-18')",
+            [employee.user.employeeId],
+          );
+          const funnel = await get(
+            "/hr/funnel?from=2026-09-18&to=2026-09-18",
+            hr,
+          );
+          assert.equal(
+            funnel.stages.find((s: any) => s.stage === "offered").records,
+            1,
+          );
+          assert.equal(
+            funnel.stages.find((s: any) => s.stage === "completed").records,
+            0,
+          );
+          const empty = await get(
+            "/hr/engagement-signals?department=nonexistent",
+            hr,
+          );
+          assert.deepEqual(empty.signals, []);
+          await get("/hr/trends?from=2026-10-01&to=2026-01-01", hr, 400);
         },
       );
       let threadId: string, messageKey: string;

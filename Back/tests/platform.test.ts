@@ -273,6 +273,49 @@ test(
         },
       );
       await t.test(
+        "concurrent OIDC identity links have a single owner",
+        async () => {
+          const accounts = await Promise.all(
+            ["oidc.one", "oidc.two"].map((login) =>
+              call(handleAdministration, "/api/v1/admin/accounts", "POST", {
+                login,
+                displayName: login,
+                role: "hr",
+                employeeId: null,
+                password: "identity-test-password",
+              }),
+            ),
+          );
+          const results = await Promise.allSettled(
+            accounts.map((account) =>
+              call(
+                handleAdministration,
+                "/api/v1/admin/oidc-identities",
+                "PUT",
+                {
+                  issuer: "https://id.example",
+                  subject: "same-subject",
+                  userId: account.id,
+                },
+              ),
+            ),
+          );
+          assert.equal(
+            results.filter((r) => r.status === "fulfilled").length,
+            1,
+          );
+          const failed = results.find(
+            (r) => r.status === "rejected",
+          ) as PromiseRejectedResult;
+          assert.equal(failed.reason.status, 409);
+          assert.equal(
+            (await pool.query("SELECT count(*)::int AS n FROM oidc_identities"))
+              .rows[0].n,
+            1,
+          );
+        },
+      );
+      await t.test(
         "notifications are private and calendar uses only own participations",
         async () => {
           const inserted = (
